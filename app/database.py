@@ -65,3 +65,25 @@ def migrate_damage_mechanism_assessment_data(database_engine: Engine = engine) -
         connection.exec_driver_sql(
             f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
         )
+
+
+def migrate_equipment_plant_unit(database_engine: Engine = engine) -> None:
+    from .models import Equipment
+
+    table = Equipment.__table__
+    with database_engine.begin() as connection:
+        existing_columns = {
+            column["name"] for column in inspect(connection).get_columns(table.name)
+        }
+        column_name = "plant_unit"
+        if column_name in existing_columns:
+            return
+
+        preparer = connection.dialect.identifier_preparer
+        quoted_table = preparer.quote(table.name)
+        definition = CreateColumn(table.c[column_name]).compile(
+            dialect=connection.dialect
+        )
+        connection.exec_driver_sql(
+            f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
+        )

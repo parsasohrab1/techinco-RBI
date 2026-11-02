@@ -9,15 +9,21 @@ def test_risk_dashboard_empty_state(client):
 
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
-    assert "Your portfolio is ready for its first analysis" in r.text
-    assert "Internal screening — not validated for API RP 580/581 conformity" in r.text
+    assert "No assessments have been recorded" in r.text
+    assert "synthetic demonstration portfolio" in r.text
+    assert "Risk matrix" in r.text
     assert 'id="assessment-search"' not in r.text
 
 
 def test_full_workflow(client, record_quality):
     # Create equipment
-    r = client.post("/equipment", json={"tag_number": "V-900", "hazardous": True})
+    r = client.post("/equipment", json={
+        "tag_number": "V-900",
+        "plant_unit": "Gas separation plant",
+        "hazardous": True,
+    })
     assert r.status_code == 200
+    assert r.json()["plant_unit"] == "Gas separation plant"
     eq_id = r.json()["id"]
 
     # Add component with CML
@@ -179,10 +185,12 @@ def test_full_workflow(client, record_quality):
     dashboard = client.get("/reports/dashboard")
     assert dashboard.status_code == 200
     assert "V-900" in dashboard.text
-    assert "Latest CML assessments" in dashboard.text
+    assert "Asset assessment register" in dashboard.text
     assert 'data-risk="' in dashboard.text
     assert "Portfolio snapshot" in dashboard.text
     assert "1 shown · 1 total" in dashboard.text
+    assert "Gas separation plant" in dashboard.text
+    assert "Risk matrix" in dashboard.text
     assert client.get("/reports/dashboard?page=0").status_code == 422
     assert client.get("/reports/dashboard?page_size=101").status_code == 422
     mechanism_assessments = data["results"][0]["details"]["damage_mechanisms"]
@@ -221,7 +229,7 @@ def test_full_workflow(client, record_quality):
 
     dashboard = client.get("/reports/dashboard")
     assert dashboard.status_code == 200
-    assert "Latest CML assessments" in dashboard.text
+    assert "Asset assessment register" in dashboard.text
     assert "V-900" in dashboard.text
     assert "CML-A" in dashboard.text
     assert f"/reports/run/{latest_run_id}/worklist.csv" in dashboard.text

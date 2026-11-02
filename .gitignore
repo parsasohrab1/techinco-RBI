@@ -5,6 +5,9 @@ venv/
 .env
 *.db
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 .pytest_cache/
 .coverage
 htmlcov/

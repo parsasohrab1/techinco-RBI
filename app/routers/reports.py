@@ -17,6 +17,13 @@ from ..database import get_db
 router = APIRouter(prefix="/reports", tags=["reports"])
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 RISK_LEVELS = ("Critical", "High", "Medium", "Low")
+PLANT_UNIT_ORDER = (
+    "Gas separation plant",
+    "Ethylene production plant",
+    "Polyethylene production plant",
+    "Polypropylene production plant",
+    "Energy supply plant",
+)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -46,21 +53,10 @@ def risk_dashboard(
         .join(models.Component, models.CML.component_id == models.Component.id)
     )
 
-    cml_count, short_interval_count, average_interval = (
-        portfolio_query.with_entities(
-            func.count(models.CMLAnalysisResult.id),
-            func.sum(
-                case(
-                    (models.CMLAnalysisResult.recommended_interval_years <= 2, 1),
-                    else_=0,
-                )
-            ),
-            func.avg(models.CMLAnalysisResult.recommended_interval_years),
-        ).one()
+    cml_count = (
+        portfolio_query.with_entities(func.count(models.CMLAnalysisResult.id)).scalar()
+        or 0
     )
-    cml_count = cml_count or 0
-    short_interval_count = short_interval_count or 0
-    average_interval = average_interval or 0
     risk_counts = Counter(
         dict(
             portfolio_query.with_entities(
@@ -71,6 +67,150 @@ def risk_dashboard(
             .all()
         )
     )
+    component_count = db.query(func.count(models.Component.id)).scalar() or 0
+    total_equipment_count = (
+        db.query(func.count(models.Equipment.id)).scalar() or 0
+    )
+    inspection_count = (
+        db.query(func.count(models.InspectionRecord.id)).scalar() or 0
+    )
+    plant_units = {
+        row[0]: {
+            "plant_unit": row[0],
+            "equipment_count": row[1],
+            "component_count": row[2],
+            "assessed_count": 0,
+        }
+        for row in (
+            db.query(
+                models.Equipment.plant_unit,
+                func.count(func.distinct(models.Equipment.id)),
+                func.count(func.distinct(models.Component.id)),
+            )
+            .outerjoin(models.Component, models.Component.equipment_id == models.Equipment.id)
+            .group_by(models.Equipment.plant_unit)
+            .order_by(models.Equipment.plant_unit)
+            .all()
+        )
+    }
+    for plant_unit, assessed_count in (
+        portfolio_query.with_entities(
+            models.Equipment.plant_unit,
+            func.count(models.CMLAnalysisResult.id),
+        )
+        .group_by(models.Equipment.plant_unit)
+        .all()
+    ):
+        plant_units[plant_unit]["assessed_count"] = assessed_count
+    plant_units = dict(sorted(
+        plant_units.items(),
+        key=lambda item: (
+            PLANT_UNIT_ORDER.index(item[0])
+            if item[0] in PLANT_UNIT_ORDER
+            else len(PLANT_UNIT_ORDER)
+        ),
+    ))
+
+    equipment_type_distribution = [
+        {
+            "equipment_type": equipment_type,
+            "count": count,
+            "percent": (
+                count * 100 / total_equipment_count
+                if total_equipment_count
+                else 0
+            ),
+        }
+        for equipment_type, count in (
+            db.query(
+                models.Equipment.equipment_type,
+                func.count(models.Equipment.id),
+            )
+            .group_by(models.Equipment.equipment_type)
+            .order_by(func.count(models.Equipment.id).desc())
+            .all()
+        )
+    ]
+    mechanism_distribution = [
+        {
+            "name": name,
+            "count": count,
+            "percent": min(count * 100 / component_count, 100) if component_count else 0,
+        }
+        for name, count in (
+            db.query(
+                models.DamageMechanism.name,
+                func.count(models.ComponentDamageMechanism.id),
+            )
+            .join(
+                models.ComponentDamageMechanism,
+                models.ComponentDamageMechanism.dm_id == models.DamageMechanism.id,
+            )
+            .filter(models.ComponentDamageMechanism.status == "active")
+            .group_by(models.DamageMechanism.name)
+            .order_by(func.count(models.ComponentDamageMechanism.id).desc())
+            .all()
+        )
+    ]
+    interval_group = case(
+        (models.CMLAnalysisResult.recommended_interval_years <= 1, "≤ 1 year"),
+        (models.CMLAnalysisResult.recommended_interval_years <= 2, "1–2 years"),
+        (models.CMLAnalysisResult.recommended_interval_years <= 5, "2–5 years"),
+        (models.CMLAnalysisResult.recommended_interval_years <= 10, "5–10 years"),
+        else_="> 10 years",
+    )
+    interval_counts = dict(
+        portfolio_query.with_entities(
+            interval_group,
+            func.count(models.CMLAnalysisResult.id),
+        )
+        .group_by(interval_group)
+        .all()
+    )
+    interval_distribution = [
+        {
+            "label": label,
+            "count": interval_counts.get(label, 0),
+            "percent": (
+                interval_counts.get(label, 0) * 100 / cml_count
+                if cml_count
+                else 0
+            ),
+        }
+        for label in ("≤ 1 year", "1–2 years", "2–5 years", "5–10 years", "> 10 years")
+    ]
+    matrix_counts = {
+        (pof_category, cof_category): count
+        for pof_category, cof_category, count in (
+            portfolio_query.with_entities(
+                models.CMLAnalysisResult.pof_category,
+                models.CMLAnalysisResult.cof_category,
+                func.count(models.CMLAnalysisResult.id),
+            )
+            .group_by(
+                models.CMLAnalysisResult.pof_category,
+                models.CMLAnalysisResult.cof_category,
+            )
+            .all()
+        )
+    }
+    risk_matrix = []
+    for pof_category in range(1, 6):
+        matrix_row = []
+        for cof_category in "ABCDE":
+            score = pof_category * (ord(cof_category) - ord("A") + 1)
+            risk_level = (
+                "Low" if score <= 3 else
+                "Medium" if score <= 8 else
+                "High" if score <= 14 else "Critical"
+            )
+            matrix_row.append({
+                "pof": pof_category,
+                "cof": cof_category,
+                "count": matrix_counts.get((pof_category, cof_category), 0),
+                "level": risk_level,
+            })
+        risk_matrix.append(matrix_row)
 
     priority_order = case(
         (models.CMLAnalysisResult.risk_level == "Critical", 0),
@@ -130,13 +270,19 @@ def risk_dashboard(
             "risk_counts": risk_counts,
             "risk_distribution": risk_distribution,
             "equipment_count": equipment_count,
+            "total_equipment_count": total_equipment_count,
+            "component_count": component_count,
+            "inspection_count": inspection_count,
             "cml_count": cml_count,
+            "plant_units": list(plant_units.values()),
+            "equipment_type_distribution": equipment_type_distribution,
+            "mechanism_distribution": mechanism_distribution,
+            "interval_distribution": interval_distribution,
+            "risk_matrix": risk_matrix,
             "page_result_count": len(rows),
             "high_priority_count": (
                 risk_counts.get("Critical", 0) + risk_counts.get("High", 0)
             ),
-            "short_interval_count": short_interval_count,
-            "average_interval": average_interval,
             "latest_run_count": equipment_count,
             "page": page,
             "page_size": page_size,

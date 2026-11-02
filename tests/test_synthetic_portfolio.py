@@ -30,13 +30,30 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
 
         assert run_portfolio_analysis(db, equipment_ids) == 4
         assert db.scalar(select(func.count()).select_from(models.Component)) == 4
+        assert db.scalar(select(func.count()).select_from(models.InspectionRecord)) == 200
+        inspection_counts = db.execute(
+            select(
+                models.InspectionRecord.cml_id,
+                func.count(models.InspectionRecord.id),
+            ).group_by(models.InspectionRecord.cml_id)
+        ).all()
+        assert len(inspection_counts) == 4
+        assert {count for _, count in inspection_counts} == {50}
         assert db.scalar(select(func.count()).select_from(models.CMLAnalysisResult)) == 4
         assert db.scalar(select(func.count()).select_from(models.AnalysisRun)) == 2
+        mechanism_link_count = db.scalar(
+            select(func.count()).select_from(models.ComponentDamageMechanism)
+        )
         assert db.scalar(
             select(func.count())
             .select_from(DataQualityStatus)
             .where(DataQualityStatus.quality == "verified")
-        ) == 54
+        ) == 640 + 2 * mechanism_link_count
+        assert db.scalar(
+            select(func.count())
+            .select_from(models.Equipment)
+            .where(models.Equipment.plant_unit != "Unassigned")
+        ) == 2
         assert db.scalar(
             select(func.count())
             .select_from(DataQualityStatus)

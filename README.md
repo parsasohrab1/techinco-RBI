@@ -53,6 +53,7 @@ The current internal screening engine is **not** an API 581 calculator. Analysis
 - Illustrative consequence score (safety / environmental / economic dimensions)
 - 5×5 risk matrix with Low / Medium / High / Critical levels
 - Recommended inspection interval based on remaining life
+- Portfolio dashboard with unit coverage, risk matrix, mechanisms, and priorities
 - Audit log with user, timestamp, and before/after values
 - Per-CML analysis reports (JSON / CSV)
 
@@ -60,7 +61,7 @@ The current internal screening engine is **not** an API 581 calculator. Analysis
 - Additional damage mechanisms: **Cracking**, **CUI**, **Thermal Fatigue** (per API 571)
 - Full three-dimensional COF (safety, environmental, economic with configurable weights)
 - Corrosion Circuits as a grouping layer
-- Dashboard with aggregated risk distribution and trends
+- Advanced historical risk and inspection trend analytics
 - CMMS/ERP integration adapters (SAP PM, Maximo)
 - SSO (OIDC/SAML) + fine-grained RBAC
 - Immutable analysis run history with diff view
@@ -100,7 +101,7 @@ The system uses a **layered architecture with a pluggable calculation engine**:
 | Backend | Python 3.11 · FastAPI · Pydantic v2 |
 | ORM / DB | SQLAlchemy 2.x · PostgreSQL 15 (SQLite for local dev) |
 | Calculation | NumPy · SciPy (`scipy.stats`) |
-| Frontend | React (planned — API-first during MVP) |
+| Frontend | Responsive Jinja2 templates · HTML/CSS/JavaScript |
 | Infra | Docker · GitHub Actions · GitHub Codespaces |
 
 ---
@@ -136,6 +137,11 @@ uvicorn app.main:app --reload
 ```
 
 Visit **http://127.0.0.1:8000/docs** to explore the API.
+
+For the full five-unit demonstration portfolio (10,000 components and 50
+synthetic UT readings per component), see
+[`docs/SYNTHETIC_DATA.md`](./docs/SYNTHETIC_DATA.md). The generator uses an
+isolated SQLite database and does not overwrite the quick-start seed database.
 
 ---
 
@@ -336,8 +342,11 @@ no operating temperature.
 ## Risk dashboard
 
 Open `/reports/dashboard` to view the latest analysis for each equipment item,
-including CML risk counts, assessment details, and CSV worklist links.
-Historical runs are excluded from the summary.
+including five process units, asset-class mix, risk matrix, active damage
+mechanisms, inspection horizons, and a filterable assessment register.
+Historical runs are excluded from the summary. The full synthetic portfolio
+generator and its 10,000-component dataset are documented in
+[`docs/SYNTHETIC_DATA.md`](./docs/SYNTHETIC_DATA.md).
 
 ## CMMS integration stub
 

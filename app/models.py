@@ -42,6 +42,9 @@ class Equipment(Base):
     __tablename__ = "equipment"
     id: Mapped[int] = mapped_column(primary_key=True)
     tag_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    plant_unit: Mapped[str] = mapped_column(
+        String(80), default="Unassigned", server_default="Unassigned", nullable=False
+    )
     equipment_type: Mapped[str] = mapped_column(String(30), default="vessel")
     material: Mapped[str] = mapped_column(String(50), default="Carbon Steel")
     design_pressure_kpa: Mapped[float] = mapped_column(Float, default=1000.0)

@@ -1,10 +1,14 @@
 # Synthetic RBI portfolio
 
-The generator creates clearly labeled, deterministic demonstration records. The
-default workload is 10,000 components across 100 synthetic vessels, with one CML
-and two thickness readings per component. It records field-level provenance so
-the dataset can pass the current analysis gate, then runs the configured
-**internal screening** engine and persists the resulting analysis runs.
+The generator creates clearly labeled, deterministic demonstration records for
+a five-unit process facility: gas separation, ethylene, polyethylene,
+polypropylene, and energy supply. The default workload is 10,000 components
+across 100 equipment items, with one CML and 50 UT thickness readings per
+component (500,000 readings total). Equipment types stay within the application's
+supported screening scope; damage-mechanism assignments include thinning, CUI,
+and SCC. Field-level quality records are labeled synthetic and do not represent
+verified plant evidence. The generator runs the configured **internal screening**
+engine and persists its analysis runs.
 
 Use the isolated SQLite default; the generator refuses to reuse an existing
 `SYN-RBI-` equipment tag prefix and never clears or overwrites records:
@@ -28,9 +32,10 @@ RBI_DATABASE_URL=sqlite:////absolute/path/to/rbi-synthetic.db \
   uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-`--components`, `--equipment`, and `--seed` can adjust workload size and
-reproducibility. `--seed-only` skips calculation execution. Synthetic values
-are labeled in their quality notes and must not be interpreted as plant data,
-engineering evidence, validated API 581 calculations, or inspection advice.
+`--components`, `--equipment`, `--inspections-per-component`, and `--seed` can
+adjust workload size and reproducibility. `--seed-only` skips calculation
+execution. Synthetic values are labeled in their quality notes and must not be
+interpreted as plant data, engineering evidence, validated API 581 calculations,
+or inspection advice.
 The dashboard paginates results and aggregates portfolio metrics across each
 equipment item's latest run.

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class EquipmentCreate(BaseModel):
     tag_number: str
+    plant_unit: str = "Unassigned"
     equipment_type: str = "vessel"
     material: str = "Carbon Steel"
     design_pressure_kpa: float = 1000.0

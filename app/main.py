@@ -8,6 +8,7 @@ from .database import (
     engine,
     migrate_component_cui_fields,
     migrate_damage_mechanism_assessment_data,
+    migrate_equipment_plant_unit,
 )
 from .routers import (
     analysis,
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_component_cui_fields(engine)
     migrate_damage_mechanism_assessment_data(engine)
+    migrate_equipment_plant_unit(engine)
     yield
 
 
