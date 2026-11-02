@@ -2,11 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from .database import Base, engine
+from .database import Base, engine, migrate_component_cui_fields
 from . import models  # noqa: F401 - ensure models are registered
 from .routers import (
     analysis,
     audit_router,
+    cmms,
     damage_mechanisms,
     equipment,
     inspections,
@@ -17,6 +18,7 @@ from .routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    migrate_component_cui_fields(engine)
     yield
 
 
@@ -33,6 +35,7 @@ app.include_router(damage_mechanisms.router)
 app.include_router(analysis.router)
 app.include_router(reports.router)
 app.include_router(audit_router.router)
+app.include_router(cmms.router)
 
 
 @app.get("/health")

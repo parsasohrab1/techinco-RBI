@@ -320,3 +320,31 @@ A few deliberate choices worth noting:
 
 ---
 
+## CUI susceptibility screening
+
+Components can be created with `insulated` and `operating_temperature_c`. When
+an active CUI mechanism is assigned, analysis reports a susceptibility screen
+for insulated carbon/low-alloy steel in the approximate -12 to 175 °C range.
+Missing operating temperature or unsupported material produces an
+`indeterminate` result. The screen is not a damage-rate or probability-of-failure
+calculation and does not change the existing POF/risk score.
+
+Existing databases receive the two component columns automatically when the
+API starts or `seed.py` runs. Existing components default to uninsulated with
+no operating temperature.
+
+## Risk dashboard
+
+Open `/reports/dashboard` to view the latest analysis for each equipment item,
+including CML risk counts, assessment details, and CSV worklist links.
+Historical runs are excluded from the summary.
+
+## CMMS integration stub
+
+`GET /integrations/cmms/status` reports the adapter mode. Posting an analysis
+run to `/integrations/cmms/runs/{run_id}/work-orders` creates mock Maximo work
+orders for High and Critical findings only. The mock adapter is in-memory,
+deduplicates repeated requests by run/CML reference, and never contacts an
+external CMMS. Replace `MockMaximoClient` with a production `CMMSAdapter`
+implementation and configure credentials and transport before enabling a
+real integration.

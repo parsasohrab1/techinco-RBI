@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RBI Risk Dashboard</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, sans-serif; color: #182230; background: #f3f6fa; }
+    body { margin: 0; }
+    main { max-width: 1280px; margin: 0 auto; padding: 2rem 1.25rem; }
+    h1 { margin-bottom: .35rem; }
+    .subtle { color: #5c6878; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .85rem; margin: 1.5rem 0; }
+    .card, .table-wrap { background: white; border: 1px solid #dce3eb; border-radius: .65rem; }
+    .card { padding: 1rem; }
+    .card strong { display: block; font-size: 1.75rem; }
+    .card span { color: #5c6878; }
+    .critical { border-top: 4px solid #b42318; }
+    .high { border-top: 4px solid #dc6803; }
+    .medium { border-top: 4px solid #ca8a04; }
+    .low { border-top: 4px solid #039855; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 880px; }
+    th, td { padding: .8rem 1rem; text-align: left; border-bottom: 1px solid #e8edf2; white-space: nowrap; }
+    th { background: #f8fafc; font-size: .82rem; color: #475467; }
+    tbody tr:last-child td { border-bottom: 0; }
+    a { color: #175cd3; }
+    .badge { display: inline-block; border-radius: 999px; padding: .2rem .55rem; background: #eef2f6; font-weight: 650; }
+    .badge.critical { color: #b42318; background: #fef3f2; border: 0; }
+    .badge.high { color: #b54708; background: #fffaeb; border: 0; }
+    .badge.medium { color: #854a0e; background: #fefce8; border: 0; }
+    .badge.low { color: #027a48; background: #ecfdf3; border: 0; }
+    .empty { padding: 2.5rem; text-align: center; color: #5c6878; }
+    footer { margin-top: 1rem; font-size: .85rem; color: #5c6878; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Risk-Based Inspection Dashboard</h1>
+    <p class="subtle">Latest analysis for each equipment item; historical runs are excluded from these totals.</p>
+
+    <section class="summary" aria-label="Risk summary">
+      <article class="card"><strong>{{ equipment_count }}</strong><span>Equipment analyzed</span></article>
+      <article class="card"><strong>{{ cml_count }}</strong><span>CMLs assessed</span></article>
+      {% for level in risk_levels %}
+      <article class="card {{ level|lower }}">
+        <strong>{{ risk_counts.get(level, 0) }}</strong><span>{{ level }} risk</span>
+      </article>
+      {% endfor %}
+    </section>
+
+    <h2>Latest CML assessments</h2>
+    <div class="table-wrap">
+      {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>Equipment</th><th>Component / CML</th><th>Risk</th><th>Score</th>
+            <th>POF / COF</th><th>Remaining life</th><th>Next interval</th>
+            <th>Analysis run</th><th>Worklist</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run, equipment, result, cml, component in rows %}
+          <tr>
+            <td>{{ equipment.tag_number }}</td>
+            <td>{{ component.name }} / {{ cml.name }}</td>
+            <td><span class="badge {{ result.risk_level|lower }}">{{ result.risk_level }}</span></td>
+            <td>{{ result.risk_score }}</td>
+            <td>{{ result.pof_category }} / {{ result.cof_category }}</td>
+            <td>{{ "%.1f"|format(result.remaining_life_years) }} yr</td>
+            <td>{{ "%.1f"|format(result.recommended_interval_years) }} yr</td>
+            <td>{{ run.run_timestamp.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td><a href="/reports/run/{{ run.id }}/worklist.csv">CSV</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No analysis results yet. Run an equipment analysis to populate this dashboard.</div>
+      {% endif %}
+    </div>
+    <footer>Risk categories and intervals are based on the configured analysis engine.</footer>
+  </main>
+</body>
+</html>

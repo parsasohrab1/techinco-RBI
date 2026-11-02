@@ -30,6 +30,8 @@ class ComponentCreate(BaseModel):
     t_min_mm: float
     t_nominal_mm: float
     geometry_type: str = "shell"
+    insulated: bool = False
+    operating_temperature_c: float | None = Field(default=None, ge=-273.15)
     cml_names: list[str] = []
 
 
@@ -39,6 +41,8 @@ class ComponentOut(BaseModel):
     t_min_mm: float
     t_nominal_mm: float
     geometry_type: str
+    insulated: bool
+    operating_temperature_c: float | None
     cmls: list[CMLOut] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -108,3 +112,32 @@ class AuditLogOut(BaseModel):
     user_id: int
     timestamp: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class CMMSStatusOut(BaseModel):
+    adapter: str
+    mode: str
+    connected: bool
+    message: str
+
+
+class CMMSWorkOrderOut(BaseModel):
+    external_reference: str
+    work_order_id: str
+    status: str
+    created: bool
+    asset_number: str
+    location: str
+    risk_level: str
+    risk_score: int
+    summary: str
+    recommended_interval_years: float
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CMMSRunSyncOut(BaseModel):
+    adapter: str
+    run_id: int
+    eligible_count: int
+    created_count: int
+    work_orders: list[CMMSWorkOrderOut]

@@ -11,6 +11,7 @@ from .base import (
     IRiskMatrix,
     PofResult,
 )
+from .damage_mechanisms import CUIDamageMechanismEvaluator
 
 
 class InternalPofCalculator(IPofCalculator):
@@ -120,3 +121,7 @@ class InternalEngine(ICalculationEngine):
         self.pof_calculator = InternalPofCalculator()
         self.cof_calculator = InternalCofCalculator()
         self.risk_matrix = StandardRiskMatrix()
+        cui_evaluator = CUIDamageMechanismEvaluator()
+        self.damage_mechanism_evaluators = {
+            cui_evaluator.mechanism_name.casefold(): cui_evaluator,
+        }

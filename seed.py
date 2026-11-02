@@ -1,9 +1,10 @@
 from datetime import date
 
 from app import models
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, engine, migrate_component_cui_fields
 
 Base.metadata.create_all(bind=engine)
+migrate_component_cui_fields(engine)
 db = SessionLocal()
 
 if db.query(models.Equipment).count() > 0:
@@ -23,9 +24,19 @@ eq = models.Equipment(
     design_pressure_kpa=1500.0, design_temperature_c=80.0,
     inventory_m3=20.0, fluid_type="liquid", hazardous=True,
 )
-comp = models.Component(name="Shell", t_min_mm=8.0, t_nominal_mm=14.0, geometry_type="shell")
+comp = models.Component(
+    name="Shell",
+    t_min_mm=8.0,
+    t_nominal_mm=14.0,
+    geometry_type="shell",
+    insulated=True,
+    operating_temperature_c=80.0,
+)
 comp.damage_mechanisms.append(models.ComponentDamageMechanism(
     dm_id=thin.id, status="active", justification="Carbon steel in wet service",
+))
+comp.damage_mechanisms.append(models.ComponentDamageMechanism(
+    dm_id=cui.id, status="active", justification="Insulated carbon steel in operating service",
 ))
 cml = models.CML(name="CML-01-Shell")
 cml.inspections.append(models.InspectionRecord(

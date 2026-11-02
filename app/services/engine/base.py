@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Literal, Protocol
+
+if TYPE_CHECKING:
+    from ...models import Component, Equipment
 
 
 @dataclass
@@ -16,6 +20,22 @@ class CofResult:
     category: str
     reference: str
     details: dict = field(default_factory=dict)
+
+
+@dataclass
+class DamageMechanismAssessment:
+    mechanism: str
+    status: Literal["susceptible", "not_susceptible", "indeterminate"]
+    reference: str
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+class IDamageMechanismEvaluator(Protocol):
+    mechanism_name: str
+
+    def assess(
+        self, equipment: "Equipment", component: "Component"
+    ) -> DamageMechanismAssessment: ...
 
 
 class IPofCalculator(ABC):
@@ -45,3 +65,4 @@ class ICalculationEngine(ABC):
     pof_calculator: IPofCalculator
     cof_calculator: ICofCalculator
     risk_matrix: IRiskMatrix
+    damage_mechanism_evaluators: dict[str, IDamageMechanismEvaluator]

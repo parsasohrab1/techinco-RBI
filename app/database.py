@@ -1,5 +1,7 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.schema import CreateColumn
 
 from .config import settings
 
@@ -20,3 +22,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def migrate_component_cui_fields(database_engine: Engine = engine) -> None:
+    from .models import Component
+
+    table = Component.__table__
+    with database_engine.begin() as connection:
+        existing_columns = {
+            column["name"] for column in inspect(connection).get_columns(table.name)
+        }
+        preparer = connection.dialect.identifier_preparer
+        quoted_table = preparer.quote(table.name)
+
+        for column_name in ("insulated", "operating_temperature_c"):
+            if column_name in existing_columns:
+                continue
+            column = table.c[column_name]
+            definition = CreateColumn(column).compile(dialect=connection.dialect)
+            connection.exec_driver_sql(
+                f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
+            )

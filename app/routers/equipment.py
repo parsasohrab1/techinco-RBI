@@ -41,6 +41,8 @@ def add_component(equipment_id: int, payload: schemas.ComponentCreate, db: Sessi
         equipment_id=equipment_id, name=payload.name,
         t_min_mm=payload.t_min_mm, t_nominal_mm=payload.t_nominal_mm,
         geometry_type=payload.geometry_type,
+        insulated=payload.insulated,
+        operating_temperature_c=payload.operating_temperature_c,
     )
     for cname in payload.cml_names:
         comp.cmls.append(models.CML(name=cname))

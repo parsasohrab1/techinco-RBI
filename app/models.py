@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from sqlalchemy import (
-    Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text,
+    Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +35,10 @@ class Component(Base):
     t_min_mm: Mapped[float] = mapped_column(Float)
     t_nominal_mm: Mapped[float] = mapped_column(Float)
     geometry_type: Mapped[str] = mapped_column(String(30), default="shell")
+    insulated: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
+    operating_temperature_c: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     equipment: Mapped["Equipment"] = relationship(back_populates="components")
     cmls: Mapped[list["CML"]] = relationship(
