@@ -77,6 +77,7 @@ class ComponentDMCreate(BaseModel):
     dm_id: int
     status: str = Field(default="active", pattern="^(active|rejected)$")
     justification: str = ""
+    assessment_data: dict[str, bool] = Field(default_factory=dict)
 
 
 class CMLAnalysisOut(BaseModel):

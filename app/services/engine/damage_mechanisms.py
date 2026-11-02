@@ -9,7 +9,10 @@ class CUIDamageMechanismEvaluator:
     reference = "API 571 §4.3.1 (simplified temperature screening)"
 
     def assess(
-        self, equipment: models.Equipment, component: models.Component
+        self,
+        equipment: models.Equipment,
+        component: models.Component,
+        assessment_data: dict[str, bool] | None = None,
     ) -> DamageMechanismAssessment:
         temperature = component.operating_temperature_c
         details = {
@@ -53,4 +56,49 @@ class CUIDamageMechanismEvaluator:
             "carbon steel" in normalized
             or "low alloy steel" in normalized
             or normalized in {"cs", "las"}
+        )
+
+
+class SCCChecklistEvaluator:
+    mechanism_name = "SCC"
+    required_inputs = (
+        "susceptible_material",
+        "environment_present",
+        "tensile_stress_present",
+    )
+    reference = "Internal generic screening checklist (not API 571/581)"
+
+    def assess(
+        self,
+        equipment: models.Equipment,
+        component: models.Component,
+        assessment_data: dict[str, bool] | None = None,
+    ) -> DamageMechanismAssessment:
+        inputs = assessment_data or {}
+        missing = [key for key in self.required_inputs if key not in inputs]
+        if missing:
+            status = "indeterminate"
+            reason = "required_screening_inputs_missing"
+        elif all(inputs[key] for key in self.required_inputs):
+            status = "susceptible"
+            reason = "all_generic_screening_conditions_reported_present"
+        else:
+            status = "not_susceptible"
+            reason = "one_or_more_generic_screening_conditions_reported_absent"
+
+        return DamageMechanismAssessment(
+            mechanism=self.mechanism_name,
+            status=status,
+            reference=self.reference,
+            details={
+                "assessment_type": "generic_user_input_checklist_only",
+                "inputs": inputs,
+                "required_inputs": list(self.required_inputs),
+                "missing_inputs": missing,
+                "reason": reason,
+                "limitations": (
+                    "This checklist is not a mechanism-specific susceptibility model, "
+                    "does not calculate cracking likelihood, and is not API-conforming."
+                ),
+            },
         )

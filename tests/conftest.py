@@ -21,11 +21,18 @@ def client():
     Base.metadata.create_all(bind=engine)
     TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     with TestSession() as db:
-        db.add(models.DamageMechanism(
-            name="CUI",
-            api571_ref="API 571 §4.3.1",
-            category="corrosion",
-        ))
+        db.add_all([
+            models.DamageMechanism(
+                name="CUI",
+                api571_ref="API 571 §4.3.1",
+                category="corrosion",
+            ),
+            models.DamageMechanism(
+                name="SCC",
+                api571_ref="API 571 (general mechanism)",
+                category="cracking",
+            ),
+        ])
         db.commit()
 
     def _get_db():

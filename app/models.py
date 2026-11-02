@@ -92,6 +92,7 @@ class ComponentDamageMechanism(Base):
     dm_id: Mapped[int] = mapped_column(ForeignKey("damage_mechanism.id"))
     status: Mapped[str] = mapped_column(String(10), default="active")
     justification: Mapped[str] = mapped_column(Text, default="")
+    assessment_data_json: Mapped[str] = mapped_column(Text, default="{}")
 
     component: Mapped["Component"] = relationship(back_populates="damage_mechanisms")
     damage_mechanism: Mapped["DamageMechanism"] = relationship()

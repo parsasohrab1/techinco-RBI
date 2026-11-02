@@ -7,7 +7,7 @@ Below is a **production-quality README** aligned with the BRS/SRS we defined. It
 ```markdown
 # 🛢️ RBI Enterprise — Risk-Based Inspection Platform
 
-> An open, standards-aligned Risk-Based Inspection (RBI) platform for fixed equipment in refining, petrochemical, and process industries — built on **API RP 580** and **API RP 581**.
+> An illustrative Risk-Based Inspection (RBI) software prototype for fixed equipment. It references API RP 580/581 as domain context but is not a standards-conforming implementation.
 
 [![Status](https://img.shields.io/badge/status-MVP%20in%20development-yellow)](./docs/ROADMAP.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
@@ -20,7 +20,7 @@ Below is a **production-quality README** aligned with the BRS/SRS we defined. It
 
 ## 📖 Overview
 
-**RBI Enterprise** is a full-lifecycle platform for managing Risk-Based Inspection programs. It implements the organizational framework of **API RP 580** and the quantitative methodology of **API RP 581** to help asset integrity teams:
+**RBI Enterprise** is an early prototype for exploring Risk-Based Inspection data and workflows. It does not implement the complete organizational framework of **API RP 580** or quantitative methodology of **API RP 581**:
 
 - **Rank** equipment by risk using Probability of Failure (POF) and Consequence of Failure (COF)
 - **Plan** inspection intervals and scopes based on quantified risk — not fixed calendars
@@ -29,7 +29,7 @@ Below is a **production-quality README** aligned with the BRS/SRS we defined. It
 
 This project is **not** a black-box calculator. Every risk output carries a reference to the governing standard section and the engine version that produced it — so an independent auditor can reproduce the exact result.
 
-> ⚠️ **Status:** The MVP focuses on **thinning (wall loss)** as the first damage mechanism. Cracking, CUI, fatigue, and other mechanisms are on the roadmap.
+> ⚠️ **Status:** Current calculations and damage-mechanism checks are illustrative screens only. They are not validated engineering models and must not be used to make inspection or safety decisions.
 
 ---
 
@@ -40,7 +40,7 @@ This project is **not** a black-box calculator. Every risk output carries a refe
 | **Auditable by default** | Every analysis is a versioned `AnalysisRun` with immutable inputs, engine version, and standard reference. |
 | **Pluggable calculation engine** | POF/COF calculators sit behind interfaces — swap the engine without touching data models or API. |
 | **API 580 as architecture** | Data management, damage mechanism review, and workflow are first-class — not bolted on. |
-| **API 581 as methodology** | Quantitative POF/COF per the standard, with explicit traceability. |
+| **Standards awareness** | Standards are domain references only; this prototype does not claim API 581 conformance. |
 | **Data quality over data volume** | Missing data is explicitly handled (blocked, assumed, or defaulted) — never silently ignored. |
 
 ---
@@ -49,8 +49,8 @@ This project is **not** a black-box calculator. Every risk output carries a refe
 
 ### ✅ MVP (Current Scope)
 - Equipment → Component → CML hierarchy with data quality tracking
-- **Thinning** damage mechanism (POF via normal distribution of wall thickness)
-- Simplified COF (safety / environmental / economic categories)
+- Illustrative thinning probability proxy and generic CUI/SCC screening
+- Illustrative consequence score (safety / environmental / economic dimensions)
 - 5×5 risk matrix with Low / Medium / High / Critical levels
 - Recommended inspection interval based on remaining life
 - Audit log with user, timestamp, and before/after values
@@ -348,3 +348,14 @@ deduplicates repeated requests by run/CML reference, and never contacts an
 external CMMS. Replace `MockMaximoClient` with a production `CMMSAdapter`
 implementation and configure credentials and transport before enabling a
 real integration.
+
+## Calculation model limitations
+
+The current thinning probability proxy, consequence score and generic SCC
+checklist are illustrative software examples only. They are not API 581
+Damage Factors, API 571 susceptibility models, or validated quantitative
+RBI calculations. SCC checklist inputs (`susceptible_material`,
+`environment_present`, and `tensile_stress_present`) are user assertions;
+missing inputs return `indeterminate`. These outputs must not be used for
+inspection decisions or safety-critical operations without an independently
+validated engineering model and qualified review.

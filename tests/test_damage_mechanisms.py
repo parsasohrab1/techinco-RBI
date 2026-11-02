@@ -2,7 +2,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.engine.damage_mechanisms import CUIDamageMechanismEvaluator
+from app.services.engine.damage_mechanisms import (
+    CUIDamageMechanismEvaluator,
+    SCCChecklistEvaluator,
+)
 
 
 def _equipment(material="Carbon Steel"):
@@ -65,3 +68,45 @@ def test_cui_screen_temperature_boundaries(temperature, expected_status):
     )
 
     assert result.status == expected_status
+
+
+def test_scc_checklist_is_indeterminate_when_inputs_are_incomplete():
+    result = SCCChecklistEvaluator().assess(
+        _equipment(), _component(), {"susceptible_material": True}
+    )
+
+    assert result.status == "indeterminate"
+    assert result.details["missing_inputs"] == [
+        "environment_present",
+        "tensile_stress_present",
+    ]
+
+
+def test_scc_checklist_marks_all_reported_conditions_present():
+    result = SCCChecklistEvaluator().assess(
+        _equipment(),
+        _component(),
+        {
+            "susceptible_material": True,
+            "environment_present": True,
+            "tensile_stress_present": True,
+        },
+    )
+
+    assert result.status == "susceptible"
+    assert result.details["assessment_type"] == "generic_user_input_checklist_only"
+    assert "not API-conforming" in result.details["limitations"]
+
+
+def test_scc_checklist_marks_absent_condition_not_susceptible():
+    result = SCCChecklistEvaluator().assess(
+        _equipment(),
+        _component(),
+        {
+            "susceptible_material": True,
+            "environment_present": False,
+            "tensile_stress_present": True,
+        },
+    )
+
+    assert result.status == "not_susceptible"

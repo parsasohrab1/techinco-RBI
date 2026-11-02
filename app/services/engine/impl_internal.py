@@ -11,7 +11,7 @@ from .base import (
     IRiskMatrix,
     PofResult,
 )
-from .damage_mechanisms import CUIDamageMechanismEvaluator
+from .damage_mechanisms import CUIDamageMechanismEvaluator, SCCChecklistEvaluator
 
 
 class InternalPofCalculator(IPofCalculator):
@@ -19,8 +19,11 @@ class InternalPofCalculator(IPofCalculator):
         if not inspections:
             return PofResult(
                 value=1e-1, category=5,
-                reference="API 581 (simplified) - no inspection data",
-                details={"reason": "no_inspection_history"},
+                reference="Internal illustrative thinning screen (not API 581)",
+                details={
+                    "model_scope": "illustrative_not_standard_conforming",
+                    "reason": "no_inspection_history",
+                },
             )
 
         sorted_ins = sorted(inspections, key=lambda i: i.inspection_date)
@@ -59,12 +62,20 @@ class InternalPofCalculator(IPofCalculator):
 
         return PofResult(
             value=pof, category=cat,
-            reference="API 581 Part 2 (simplified thinning model)",
+            reference="Internal illustrative thinning screen (not API 581)",
             details={
+                "model_scope": "illustrative_not_standard_conforming",
+                "probability_model": "normal_survival_proxy",
                 "corrosion_rate_mm_yr": round(rate, 4),
                 "remaining_life_years": round(remaining_life, 2),
                 "sigma_life": round(sigma_life, 3),
                 "z_score": round(float(z), 3),
+                "inspection_count": len(sorted_ins),
+                "inspection_span_years": round(years, 3),
+                "observed_thickness_range_mm": {
+                    "minimum": min(i.thickness_mm for i in sorted_ins),
+                    "maximum": max(i.thickness_mm for i in sorted_ins),
+                },
                 "effectiveness": last.effectiveness,
                 "effectiveness_adjustment": eff_adj,
             },
@@ -91,8 +102,9 @@ class InternalCofCalculator(ICofCalculator):
 
         return CofResult(
             value=combined, category=cat,
-            reference="API 581 Part 3 (simplified COF)",
+            reference="Internal illustrative consequence screen (not API 581)",
             details={
+                "model_scope": "illustrative_score_only_not_physical_consequence_model",
                 "safety": safety, "environmental": env, "economic": econ,
                 "weights": {"safety": w_s, "environmental": w_e, "economic": w_m},
             },
@@ -113,8 +125,8 @@ class StandardRiskMatrix(IRiskMatrix):
 
 class InternalEngine(ICalculationEngine):
     metadata = EngineMetadata(
-        name="internal", version="0.1.0",
-        standard_ref="API 581 4th Ed. (simplified MVP)",
+        name="internal", version="0.2.0",
+        standard_ref="Internal illustrative screening model; not API 581 conforming",
     )
 
     def __init__(self):
@@ -122,6 +134,8 @@ class InternalEngine(ICalculationEngine):
         self.cof_calculator = InternalCofCalculator()
         self.risk_matrix = StandardRiskMatrix()
         cui_evaluator = CUIDamageMechanismEvaluator()
+        scc_evaluator = SCCChecklistEvaluator()
         self.damage_mechanism_evaluators = {
             cui_evaluator.mechanism_name.casefold(): cui_evaluator,
+            scc_evaluator.mechanism_name.casefold(): scc_evaluator,
         }

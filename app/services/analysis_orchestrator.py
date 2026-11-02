@@ -45,7 +45,11 @@ def analyze_equipment(db: Session, equipment: models.Equipment) -> models.Analys
                     mechanism.damage_mechanism.name.casefold()
                 )
                 if evaluator is not None:
-                    mechanism_assessments.append(asdict(evaluator.assess(equipment, comp)))
+                    mechanism_assessments.append(asdict(evaluator.assess(
+                        equipment,
+                        comp,
+                        json.loads(mechanism.assessment_data_json or "{}"),
+                    )))
 
             cof = engine.cof_calculator.calculate(equipment, comp)
             score, level = engine.risk_matrix.evaluate(pof, cof)

@@ -43,3 +43,25 @@ def migrate_component_cui_fields(database_engine: Engine = engine) -> None:
             connection.exec_driver_sql(
                 f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
             )
+
+
+def migrate_damage_mechanism_assessment_data(database_engine: Engine = engine) -> None:
+    from .models import ComponentDamageMechanism
+
+    table = ComponentDamageMechanism.__table__
+    with database_engine.begin() as connection:
+        existing_columns = {
+            column["name"] for column in inspect(connection).get_columns(table.name)
+        }
+        column_name = "assessment_data_json"
+        if column_name in existing_columns:
+            return
+
+        preparer = connection.dialect.identifier_preparer
+        quoted_table = preparer.quote(table.name)
+        definition = CreateColumn(table.c[column_name]).compile(
+            dialect=connection.dialect
+        )
+        connection.exec_driver_sql(
+            f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
+        )

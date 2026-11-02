@@ -34,7 +34,10 @@ class IDamageMechanismEvaluator(Protocol):
     mechanism_name: str
 
     def assess(
-        self, equipment: "Equipment", component: "Component"
+        self,
+        equipment: "Equipment",
+        component: "Component",
+        assessment_data: dict[str, bool] | None = None,
     ) -> DamageMechanismAssessment: ...
 
 

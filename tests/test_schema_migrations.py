@@ -1,6 +1,9 @@
 from sqlalchemy import create_engine, inspect
 
-from app.database import migrate_component_cui_fields
+from app.database import (
+    migrate_component_cui_fields,
+    migrate_damage_mechanism_assessment_data,
+)
 
 
 def test_component_cui_migration_adds_columns_to_existing_schema():
@@ -24,3 +27,28 @@ def test_component_cui_migration_adds_columns_to_existing_schema():
 
     columns = {column["name"] for column in inspect(engine).get_columns("component")}
     assert {"insulated", "operating_temperature_c"} <= columns
+
+
+def test_damage_mechanism_migration_adds_assessment_data_to_existing_schema():
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE component_damage_mechanism (
+                id INTEGER PRIMARY KEY,
+                component_id INTEGER NOT NULL,
+                dm_id INTEGER NOT NULL,
+                status VARCHAR(10) NOT NULL,
+                justification TEXT NOT NULL
+            )
+            """
+        )
+
+    migrate_damage_mechanism_assessment_data(engine)
+    migrate_damage_mechanism_assessment_data(engine)
+
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("component_damage_mechanism")
+    }
+    assert "assessment_data_json" in columns

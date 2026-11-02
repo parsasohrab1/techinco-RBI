@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -25,6 +27,7 @@ def assign_dm(component_id: int, payload: schemas.ComponentDMCreate, db: Session
     link = models.ComponentDamageMechanism(
         component_id=component_id, dm_id=payload.dm_id,
         status=payload.status, justification=payload.justification,
+        assessment_data_json=json.dumps(payload.assessment_data),
     )
     db.add(link)
     db.commit()

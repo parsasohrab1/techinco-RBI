@@ -2,7 +2,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from .database import Base, engine, migrate_component_cui_fields
+from .database import (
+    Base,
+    engine,
+    migrate_component_cui_fields,
+    migrate_damage_mechanism_assessment_data,
+)
 from . import models  # noqa: F401 - ensure models are registered
 from .routers import (
     analysis,
@@ -19,6 +24,7 @@ from .routers import (
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     migrate_component_cui_fields(engine)
+    migrate_damage_mechanism_assessment_data(engine)
     yield
 
 

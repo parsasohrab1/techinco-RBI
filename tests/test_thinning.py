@@ -25,6 +25,12 @@ def test_thinning_pof_calculates_rate_and_life():
     assert 0.20 < result.details["corrosion_rate_mm_yr"] < 0.25
     assert 15 < result.details["remaining_life_years"] < 20
     assert 1 <= result.category <= 5
+    assert result.details["model_scope"] == "illustrative_not_standard_conforming"
+    assert result.details["inspection_count"] == 2
+    assert result.details["observed_thickness_range_mm"] == {
+        "minimum": 11.9,
+        "maximum": 12.6,
+    }
 
 
 def test_thinning_pof_no_inspections_is_worst_case():

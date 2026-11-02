@@ -39,6 +39,23 @@ def test_full_workflow(client):
         json={"dm_id": cui["id"], "status": "active"},
     )
     assert r.status_code == 200
+    scc = next(
+        mechanism for mechanism in client.get("/damage-mechanisms").json()
+        if mechanism["name"] == "SCC"
+    )
+    r = client.post(
+        f"/damage-mechanisms/components/{component_id}/assign",
+        json={
+            "dm_id": scc["id"],
+            "status": "active",
+            "assessment_data": {
+                "susceptible_material": True,
+                "environment_present": True,
+                "tensile_stress_present": True,
+            },
+        },
+    )
+    assert r.status_code == 200
 
     # Add inspections
     for d, t in [("2020-05-01", 12.6), ("2023-06-01", 11.9)]:
@@ -54,10 +71,18 @@ def test_full_workflow(client):
     assert data["tag_number"] == "V-900"
     assert len(data["results"]) == 1
     assert data["results"][0]["risk_level"] in {"Low", "Medium", "High", "Critical"}
-    cui_assessment = data["results"][0]["details"]["damage_mechanisms"][0]
+    mechanism_assessments = data["results"][0]["details"]["damage_mechanisms"]
+    cui_assessment = next(
+        item for item in mechanism_assessments if item["mechanism"] == "CUI"
+    )
     assert cui_assessment["mechanism"] == "CUI"
     assert cui_assessment["status"] == "susceptible"
     assert cui_assessment["details"]["assessment_type"] == "susceptibility_screen_only"
+    scc_assessment = next(
+        item for item in mechanism_assessments if item["mechanism"] == "SCC"
+    )
+    assert scc_assessment["status"] == "susceptible"
+    assert scc_assessment["details"]["assessment_type"] == "generic_user_input_checklist_only"
 
     # CSV worklist
     run_id = data["run_id"]

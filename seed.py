@@ -1,22 +1,51 @@
 from datetime import date
 
 from app import models
-from app.database import Base, SessionLocal, engine, migrate_component_cui_fields
+from app.database import (
+    Base,
+    SessionLocal,
+    engine,
+    migrate_component_cui_fields,
+    migrate_damage_mechanism_assessment_data,
+)
 
 Base.metadata.create_all(bind=engine)
 migrate_component_cui_fields(engine)
+migrate_damage_mechanism_assessment_data(engine)
 db = SessionLocal()
+
+# Keep the mechanism catalog current even when demo equipment was seeded earlier.
+catalog = [
+    models.DamageMechanism(
+        name="Thinning", api571_ref="API 571 §4.2.1", category="mechanical"
+    ),
+    models.DamageMechanism(
+        name="CUI", api571_ref="API 571 §4.3.1", category="corrosion"
+    ),
+    models.DamageMechanism(
+        name="Cracking", api571_ref="API 571 §4.5", category="mechanical"
+    ),
+    models.DamageMechanism(
+        name="SCC", api571_ref="API 571 (general mechanism)", category="cracking"
+    ),
+]
+existing_names = {
+    name for (name,) in db.query(models.DamageMechanism.name).all()
+}
+db.add_all(mechanism for mechanism in catalog if mechanism.name not in existing_names)
+db.commit()
 
 if db.query(models.Equipment).count() > 0:
     print("ℹ️  Demo data already present — skipping seed.")
+    db.close()
     raise SystemExit(0)
 
-# Damage mechanism catalog
-thin = models.DamageMechanism(name="Thinning", api571_ref="API 571 §4.2.1", category="mechanical")
-cui = models.DamageMechanism(name="CUI", api571_ref="API 571 §4.3.1", category="corrosion")
-crack = models.DamageMechanism(name="Cracking", api571_ref="API 571 §4.5", category="mechanical")
-db.add_all([thin, cui, crack])
-db.flush()
+mechanisms = {
+    mechanism.name: mechanism
+    for mechanism in db.query(models.DamageMechanism).all()
+}
+thin = mechanisms["Thinning"]
+cui = mechanisms["CUI"]
 
 # Demo vessel
 eq = models.Equipment(
