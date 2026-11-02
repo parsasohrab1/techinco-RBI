@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services.analysis_orchestrator import analyze_equipment
+from ..services.data_platform import DataPlatformError
+from ..standards.baseline import Baseline
 
 router = APIRouter(tags=["analysis"])
 
@@ -15,9 +17,23 @@ def analyze(equipment_id: int, db: Session = Depends(get_db)):
     eq = db.get(models.Equipment, equipment_id)
     if not eq:
         raise HTTPException(404, "Equipment not found")
+    try:
+        Baseline.equipment_scope.validate(eq.equipment_type)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     if not any(c.cmls for c in eq.components):
         raise HTTPException(400, "Equipment has no CMLs to analyze")
-    run = analyze_equipment(db, eq)
+    try:
+        run = analyze_equipment(db, eq)
+    except DataPlatformError as error:
+        db.rollback()
+        raise HTTPException(
+            status_code=error.status_code,
+            detail={
+                "message": str(error),
+                "missing_fields": error.missing_fields,
+            },
+        ) from error
 
     results = []
     for r in run.results:

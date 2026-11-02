@@ -1,17 +1,25 @@
 import numpy as np
 from scipy.stats import norm
+from dataclasses import asdict
+from datetime import date
+from types import SimpleNamespace
+from typing import Any
 
 from ...config import settings
+from ...standards.baseline import Baseline
 from .base import (
     CofResult,
+    DamageMechanismAssessment,
     EngineMetadata,
-    ICalculationEngine,
+    IEngineCalculatorBundle,
     ICofCalculator,
     IPofCalculator,
     IRiskMatrix,
     PofResult,
 )
+from .contract import EngineInputSnapshot, EngineOutput, ICalculationEngine
 from .damage_mechanisms import CUIDamageMechanismEvaluator, SCCChecklistEvaluator
+from .mechanism_gate import MechanismGate
 
 
 class InternalPofCalculator(IPofCalculator):
@@ -83,14 +91,21 @@ class InternalPofCalculator(IPofCalculator):
 
 
 class InternalCofCalculator(ICofCalculator):
+    def __init__(self, weights: dict[str, float] | None = None):
+        self.weights = weights or {
+            "safety": settings.cof_weight_safety,
+            "environmental": settings.cof_weight_environmental,
+            "economic": settings.cof_weight_economic,
+        }
+
     def calculate(self, equipment, component):
         safety = min(1 + (2 if equipment.hazardous else 0) + (1 if equipment.fluid_type == "gas" else 0), 5)
         env = 3 if equipment.inventory_m3 > 100 else 2 if equipment.inventory_m3 > 10 else 1
         econ = min(int((equipment.design_pressure_kpa * equipment.inventory_m3) / 10000.0) + 1, 5)
 
-        w_s = settings.cof_weight_safety
-        w_e = settings.cof_weight_environmental
-        w_m = settings.cof_weight_economic
+        w_s = self.weights["safety"]
+        w_e = self.weights["environmental"]
+        w_m = self.weights["economic"]
         total = w_s + w_e + w_m or 1.0
         combined = round((w_s * safety + w_e * env + w_m * econ) / total, 3)
 
@@ -123,15 +138,24 @@ class StandardRiskMatrix(IRiskMatrix):
         return score, level
 
 
-class InternalEngine(ICalculationEngine):
+class InternalEngine(IEngineCalculatorBundle, ICalculationEngine):
     metadata = EngineMetadata(
-        name="internal", version="0.2.0",
-        standard_ref="Internal illustrative screening model; not API 581 conforming",
+        name="internal",
+        version="0.2.0",
+        standard_ref=(
+            f"Internal illustrative screening; references {Baseline.api581.label()}; "
+            "not API 581 conforming"
+        ),
     )
 
-    def __init__(self):
+    def __init__(
+        self,
+        cof_weights: dict[str, float] | None = None,
+        strict_compliance: bool = False,
+    ):
+        self._strict_compliance = strict_compliance
         self.pof_calculator = InternalPofCalculator()
-        self.cof_calculator = InternalCofCalculator()
+        self.cof_calculator = InternalCofCalculator(cof_weights)
         self.risk_matrix = StandardRiskMatrix()
         cui_evaluator = CUIDamageMechanismEvaluator()
         scc_evaluator = SCCChecklistEvaluator()
@@ -139,3 +163,96 @@ class InternalEngine(ICalculationEngine):
             cui_evaluator.mechanism_name.casefold(): cui_evaluator,
             scc_evaluator.mechanism_name.casefold(): scc_evaluator,
         }
+
+    @property
+    def name(self) -> str:
+        return self.metadata.name
+
+    @property
+    def version(self) -> str:
+        return self.metadata.version
+
+    @property
+    def supported_mechanisms(self) -> set[str]:
+        return {"thinning", *self.damage_mechanism_evaluators}
+
+    @property
+    def compliance_status(self) -> str:
+        return "internal_screening"
+
+    def compute(self, snapshot: EngineInputSnapshot) -> EngineOutput:
+        inputs = snapshot.inputs
+        equipment = SimpleNamespace(**inputs["equipment"])
+        component = SimpleNamespace(**inputs["component"])
+        cml = SimpleNamespace(**inputs["cml"])
+        inspections = []
+        for item in inputs["inspections"]:
+            inspection_data = dict(item)
+            if isinstance(inspection_data.get("inspection_date"), str):
+                inspection_data["inspection_date"] = date.fromisoformat(
+                    inspection_data["inspection_date"]
+                )
+            inspections.append(SimpleNamespace(**inspection_data))
+        active_mechanisms = [
+            SimpleNamespace(**item) for item in inputs["damage_mechanisms"]
+        ]
+
+        for mechanism in active_mechanisms:
+            name = mechanism.name.casefold()
+            self.validate_scope(name)
+            if self._strict_compliance:
+                MechanismGate.assert_admitted(name)
+
+        pof = self.pof_calculator.calculate(
+            component,
+            cml,
+            inspections,
+            active_mechanisms,
+        )
+        cof = self.cof_calculator.calculate(equipment, component)
+        score, level = self.risk_matrix.evaluate(pof, cof)
+        remaining = pof.details.get("remaining_life_years", 999.0)
+        interval = _recommended_interval(remaining, level)
+
+        mechanism_assessments: list[DamageMechanismAssessment] = []
+        references = [pof.reference, cof.reference]
+        for mechanism in active_mechanisms:
+            evaluator = self.damage_mechanism_evaluators.get(mechanism.name.casefold())
+            if evaluator is None:
+                continue
+            assessment = evaluator.assess(
+                equipment,
+                component,
+                mechanism.assessment_data,
+            )
+            mechanism_assessments.append(asdict(assessment))
+            references.append(assessment.reference)
+
+        details: dict[str, Any] = {
+            "pof": {"reference": pof.reference, "details": pof.details},
+            "cof": {"reference": cof.reference, "details": cof.details},
+        }
+        if mechanism_assessments:
+            details["damage_mechanisms"] = mechanism_assessments
+
+        return EngineOutput(
+            pof_value=pof.value,
+            pof_category=pof.category,
+            cof_value=cof.value,
+            cof_category=cof.category,
+            risk_score=score,
+            risk_level=level,
+            remaining_life_years=remaining,
+            recommended_interval_years=interval,
+            intermediate_details=details,
+            standard_references=references,
+            engine_name=self.name,
+            engine_version=self.version,
+            compliance_status=self.compliance_status,
+        )
+
+
+def _recommended_interval(remaining_life: float, risk_level: str) -> float:
+    base = 10.0 if remaining_life >= 999 else remaining_life / 2.0
+    cap = {"Critical": 2.0, "High": 4.0, "Medium": 6.0, "Low": 10.0}[risk_level]
+    return round(max(min(base, cap), 1.0), 1)

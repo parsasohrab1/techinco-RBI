@@ -2,18 +2,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from . import models  # noqa: F401 - ensure models are registered
 from .database import (
     Base,
     engine,
     migrate_component_cui_fields,
     migrate_damage_mechanism_assessment_data,
 )
-from . import models  # noqa: F401 - ensure models are registered
 from .routers import (
     analysis,
     audit_router,
     cmms,
     damage_mechanisms,
+    data_platform,
     equipment,
     inspections,
     reports,
@@ -30,7 +31,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="RBI Enterprise API",
-    description="Risk-Based Inspection platform based on API RP 580 / API RP 581",
+    description=(
+        "RBI screening prototype referencing API RP 580 / API RP 581; "
+        "internal calculations are not standards-conforming."
+    ),
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -42,6 +46,7 @@ app.include_router(analysis.router)
 app.include_router(reports.router)
 app.include_router(audit_router.router)
 app.include_router(cmms.router)
+app.include_router(data_platform.router)
 
 
 @app.get("/health")

@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
+from ..services import audit
+from ..services.data_platform import DataPlatformService
 
 router = APIRouter(prefix="/damage-mechanisms", tags=["damage-mechanisms"])
 
@@ -30,6 +32,22 @@ def assign_dm(component_id: int, payload: schemas.ComponentDMCreate, db: Session
         assessment_data_json=json.dumps(payload.assessment_data),
     )
     db.add(link)
+    db.flush()
+    audit.log(db, link, "create")
+    DataPlatformService(db).record_event(
+        "damage_mechanism_assigned",
+        "component_damage_mechanism",
+        link.id,
+        str(audit.current_user_id.get()),
+        {
+            "component_id": component_id,
+            "damage_mechanism_id": dm.id,
+            "name": dm.name,
+            "status": link.status,
+            "justification": link.justification,
+            "assessment_data": payload.assessment_data,
+        },
+    )
     db.commit()
     db.refresh(link)
     return {"id": link.id, "status": link.status}

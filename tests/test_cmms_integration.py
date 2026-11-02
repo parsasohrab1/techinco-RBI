@@ -1,3 +1,22 @@
+from datetime import datetime
+
+
+def _record_quality(client, entity_type, entity_id, field_name):
+    response = client.post(
+        "/data-platform/quality-records",
+        json={
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "field_name": field_name,
+            "source": "Test fixture",
+            "source_date": datetime(2025, 1, 1).isoformat(),
+            "actor": "test-engineer",
+            "quality": "verified",
+        },
+    )
+    assert response.status_code == 200, response.text
+
+
 def test_cmms_mock_status(client):
     response = client.get("/integrations/cmms/status")
 
@@ -22,6 +41,15 @@ def test_high_risk_run_creates_idempotent_mock_work_order(client):
         },
     )
     assert component.status_code == 200
+
+    equipment_id = equipment.json()["id"]
+    component_id = component.json()["id"]
+    cml_id = component.json()["cmls"][0]["id"]
+    for field in ("material", "design_pressure_kpa", "inventory_m3", "fluid_type", "hazardous"):
+        _record_quality(client, "equipment", equipment_id, field)
+    for field in ("t_min_mm", "t_nominal_mm", "geometry_type", "damage_mechanism_review"):
+        _record_quality(client, "component", component_id, field)
+    _record_quality(client, "cml", cml_id, "inspection_history")
 
     analysis = client.post(f"/equipment/{equipment.json()['id']}/analyze")
     assert analysis.status_code == 200

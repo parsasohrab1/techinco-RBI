@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from app import models
 from app.database import (
@@ -8,6 +8,7 @@ from app.database import (
     migrate_component_cui_fields,
     migrate_damage_mechanism_assessment_data,
 )
+from app.services.data_platform import DataPlatformService
 
 Base.metadata.create_all(bind=engine)
 migrate_component_cui_fields(engine)
@@ -36,7 +37,10 @@ db.add_all(mechanism for mechanism in catalog if mechanism.name not in existing_
 db.commit()
 
 if db.query(models.Equipment).count() > 0:
-    print("ℹ️  Demo data already present — skipping seed.")
+    print(
+        "ℹ️  Equipment already exists — skipping seed. Existing records need "
+        "field-level data-quality evidence before analysis."
+    )
     db.close()
     raise SystemExit(0)
 
@@ -77,6 +81,64 @@ cml.inspections.append(models.InspectionRecord(
 comp.cmls.append(cml)
 eq.components.append(comp)
 db.add(eq)
+db.commit()
+data_platform = DataPlatformService(db)
+source = "Synthetic demo data; not engineering evidence"
+recorded_at = datetime.utcnow()
+for field in ("material", "design_pressure_kpa", "inventory_m3", "fluid_type", "hazardous"):
+    data_platform.record_quality(
+        "equipment", eq.id, field, source, recorded_at, "unverified", "seed.py",
+        "Verify against primary engineering records before analysis.",
+    )
+for field in (
+    "t_min_mm",
+    "t_nominal_mm",
+    "geometry_type",
+    "damage_mechanism_review",
+    "insulated",
+    "operating_temperature_c",
+):
+    data_platform.record_quality(
+        "component", comp.id, field, source, recorded_at, "unverified", "seed.py",
+        "Verify against primary engineering records before analysis.",
+    )
+for link in comp.damage_mechanisms:
+    data_platform.record_quality(
+        "component_damage_mechanism",
+        link.id,
+        "status",
+        source,
+        recorded_at,
+        "unverified",
+        "seed.py",
+        "Verify the damage-mechanism review before analysis.",
+    )
+    data_platform.record_quality(
+        "component_damage_mechanism",
+        link.id,
+        "assessment_data",
+        source,
+        recorded_at,
+        "unverified",
+        "seed.py",
+        "Verify the screening inputs before analysis.",
+    )
+data_platform.record_quality(
+    "cml", cml.id, "inspection_history", source, recorded_at, "unverified",
+    "seed.py", "Verify the inspection history against source reports.",
+)
+for inspection in cml.inspections:
+    for field in ("inspection_date", "thickness_mm", "effectiveness"):
+        data_platform.record_quality(
+            "inspection_record",
+            inspection.id,
+            field,
+            source,
+            recorded_at,
+            "unverified",
+            "seed.py",
+            "Verify against the original inspection report.",
+        )
 db.commit()
 print(f"✅ Seeded equipment {eq.tag_number} with component + CML + 2 inspections")
 db.close()

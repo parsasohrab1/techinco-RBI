@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -6,8 +8,8 @@ from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401
 from app.database import Base, get_db
-from app.routers.cmms import get_cmms_adapter
 from app.main import app
+from app.routers.cmms import get_cmms_adapter
 from app.services.cmms import MockMaximoClient
 
 
@@ -47,3 +49,24 @@ def client():
     app.dependency_overrides[get_cmms_adapter] = lambda: cmms_client
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def record_quality():
+    def _record(client, entity_type, entity_id, field_name, quality="verified"):
+        response = client.post(
+            "/data-platform/quality-records",
+            json={
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "field_name": field_name,
+                "source": "Test fixture",
+                "source_date": datetime(2025, 1, 1).isoformat(),
+                "actor": "test-engineer",
+                "quality": quality,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    return _record

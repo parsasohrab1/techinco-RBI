@@ -12,7 +12,7 @@ def test_risk_dashboard_empty_state(client):
     assert "No analysis results yet" in r.text
 
 
-def test_full_workflow(client):
+def test_full_workflow(client, record_quality):
     # Create equipment
     r = client.post("/equipment", json={"tag_number": "V-900", "hazardous": True})
     assert r.status_code == 200
@@ -21,12 +21,12 @@ def test_full_workflow(client):
     # Add component with CML
     r = client.post(f"/equipment/{eq_id}/components", json={
         "name": "Shell", "t_min_mm": 8.0, "t_nominal_mm": 14.0,
-        "insulated": True, "operating_temperature_c": 80.0,
+        "insulated": True, "operating_temperature_c": None,
         "cml_names": ["CML-A"],
     })
     assert r.status_code == 200
     assert r.json()["insulated"] is True
-    assert r.json()["operating_temperature_c"] == 80.0
+    assert r.json()["operating_temperature_c"] is None
     component_id = r.json()["id"]
     cml_id = r.json()["cmls"][0]["id"]
 
@@ -39,6 +39,16 @@ def test_full_workflow(client):
         json={"dm_id": cui["id"], "status": "active"},
     )
     assert r.status_code == 200
+    cui_link_id = r.json()["id"]
+    mechanism_event = client.get(
+        "/data-platform/events",
+        params={
+            "entity_type": "component_damage_mechanism",
+            "entity_id": cui_link_id,
+        },
+    )
+    assert mechanism_event.status_code == 200
+    assert mechanism_event.json()[0]["event_type"] == "damage_mechanism_assigned"
     scc = next(
         mechanism for mechanism in client.get("/damage-mechanisms").json()
         if mechanism["name"] == "SCC"
@@ -56,21 +66,114 @@ def test_full_workflow(client):
         },
     )
     assert r.status_code == 200
+    scc_link_id = r.json()["id"]
 
     # Add inspections
+    inspection_ids = []
     for d, t in [("2020-05-01", 12.6), ("2023-06-01", 11.9)]:
         r = client.post(f"/cml/{cml_id}/inspections", json={
             "inspection_date": d, "thickness_mm": t, "effectiveness": "B",
         })
         assert r.status_code == 200
+        inspection_ids.append(r.json()["id"])
+        events = client.get(
+            "/data-platform/events",
+            params={
+                "entity_type": "inspection_record",
+                "entity_id": r.json()["id"],
+            },
+        )
+        assert events.status_code == 200
+        assert events.json()[0]["event_type"] == "inspection_recorded"
 
-    # Run analysis
+    # Missing provenance blocks calculation instead of silently using unverified inputs.
+    r = client.post(f"/equipment/{eq_id}/analyze")
+    assert r.status_code == 409
+    assert r.json()["detail"]["missing_fields"]
+
+    for field in ("material", "design_pressure_kpa", "fluid_type", "hazardous"):
+        record_quality(client, "equipment", eq_id, field)
+    assumption = client.post(
+        "/data-platform/assumptions",
+        json={
+            "entity_type": "equipment",
+            "entity_id": eq_id,
+            "field_name": "inventory_m3",
+            "assumed_value": "200",
+            "basis": "Approved test assumption",
+            "actor": "engineer",
+        },
+    )
+    assert assumption.status_code == 200
+    approved = client.post(
+        f"/data-platform/assumptions/{assumption.json()['id']}/approve",
+        json={"actor": "approver"},
+    )
+    assert approved.status_code == 200
+    record_quality(client, "equipment", eq_id, "inventory_m3", quality="assumed")
+    temperature_assumption = client.post(
+        "/data-platform/assumptions",
+        json={
+            "entity_type": "component",
+            "entity_id": component_id,
+            "field_name": "operating_temperature_c",
+            "assumed_value": "80",
+            "basis": "Approved test assumption",
+            "actor": "engineer",
+        },
+    )
+    assert temperature_assumption.status_code == 200
+    approved_temperature = client.post(
+        f"/data-platform/assumptions/{temperature_assumption.json()['id']}/approve",
+        json={"actor": "approver"},
+    )
+    assert approved_temperature.status_code == 200
+    for field in (
+        "t_min_mm", "t_nominal_mm", "geometry_type", "insulated",
+        "damage_mechanism_review",
+    ):
+        record_quality(client, "component", component_id, field)
+    record_quality(
+        client,
+        "component",
+        component_id,
+        "operating_temperature_c",
+        quality="assumed",
+    )
+    record_quality(client, "cml", cml_id, "inspection_history")
+    for inspection_id in inspection_ids:
+        for field in ("inspection_date", "thickness_mm", "effectiveness"):
+            record_quality(client, "inspection_record", inspection_id, field)
+    for link_id in (cui_link_id, scc_link_id):
+        record_quality(
+            client,
+            "component_damage_mechanism",
+            link_id,
+            "status",
+        )
+        record_quality(
+            client,
+            "component_damage_mechanism",
+            link_id,
+            "assessment_data",
+        )
+
+    # Run analysis with complete provenance.
     r = client.post(f"/equipment/{eq_id}/analyze")
     assert r.status_code == 200
     data = r.json()
     assert data["tag_number"] == "V-900"
     assert len(data["results"]) == 1
     assert data["results"][0]["risk_level"] in {"Low", "Medium", "High", "Critical"}
+    assert data["results"][0]["details"]["cof"]["details"]["environmental"] == 3
+    assert data["results"][0]["details"]["engine"]["compliance_status"] == "internal_screening"
+    assert data["results"][0]["details"]["inputs"]["equipment"]["inventory_m3"] == 200.0
+    reconstruction = client.get(
+        f"/audit/runs/{data['run_id']}/reconstruction"
+    )
+    assert reconstruction.status_code == 200
+    assert reconstruction.json()["compliance_claim"].startswith("No API RP")
+    assert reconstruction.json()["chain_of_custody"][0]["assumptions"][0]["assumed_value"] == "200"
     mechanism_assessments = data["results"][0]["details"]["damage_mechanisms"]
     cui_assessment = next(
         item for item in mechanism_assessments if item["mechanism"] == "CUI"
@@ -83,6 +186,17 @@ def test_full_workflow(client):
     )
     assert scc_assessment["status"] == "susceptible"
     assert scc_assessment["details"]["assessment_type"] == "generic_user_input_checklist_only"
+    events = client.get(
+        "/data-platform/events",
+        params={"entity_type": "equipment", "entity_id": eq_id},
+    ).json()
+    analysis_event = next(
+        event for event in events if event["event_type"] == "analysis_run_created"
+    )
+    assert analysis_event["payload"]["input_snapshot"]["equipment"]["inventory_m3"] == 200.0
+    assert analysis_event["payload"]["compliance_status"] == (
+        "INTERNAL SCREENING ONLY — no API conformity claim"
+    )
 
     # CSV worklist
     run_id = data["run_id"]
@@ -101,3 +215,8 @@ def test_full_workflow(client):
     assert "CML-A" in dashboard.text
     assert f"/reports/run/{latest_run_id}/worklist.csv" in dashboard.text
     assert f"/reports/run/{run_id}/worklist.csv" not in dashboard.text
+
+    record_quality(client, "equipment", eq_id, "inventory_m3", quality="unverified")
+    blocked = client.post(f"/equipment/{eq_id}/analyze")
+    assert blocked.status_code == 409
+    assert f"equipment.{eq_id}.inventory_m3" in blocked.json()["detail"]["missing_fields"]

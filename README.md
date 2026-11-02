@@ -22,12 +22,12 @@ Below is a **production-quality README** aligned with the BRS/SRS we defined. It
 
 **RBI Enterprise** is an early prototype for exploring Risk-Based Inspection data and workflows. It does not implement the complete organizational framework of **API RP 580** or quantitative methodology of **API RP 581**:
 
-- **Rank** equipment by risk using Probability of Failure (POF) and Consequence of Failure (COF)
-- **Plan** inspection intervals and scopes based on quantified risk — not fixed calendars
-- **Document** every decision with a full, reconstructible audit trail
-- **Integrate** with CMMS/ERP systems (SAP PM, IBM Maximo) for closed-loop inspection workflows
+- **Screen** equipment with illustrative Probability of Failure (POF) and Consequence of Failure (COF) scores
+- **Suggest** inspection intervals using the internal screening result
+- **Record** basic audit and data-provenance events for analysis runs
+- **Prototype** CMMS/ERP workflows through a mock adapter
 
-This project is **not** a black-box calculator. Every risk output carries a reference to the governing standard section and the engine version that produced it — so an independent auditor can reproduce the exact result.
+The current internal screening engine is **not** an API 581 calculator. Analysis runs record the engine reference and a traceable input snapshot; these records are not a tamper-proof or independently validated compliance package.
 
 > ⚠️ **Status:** Current calculations and damage-mechanism checks are illustrative screens only. They are not validated engineering models and must not be used to make inspection or safety decisions.
 
@@ -37,7 +37,7 @@ This project is **not** a black-box calculator. Every risk output carries a refe
 
 | Principle | What it means in practice |
 | :--- | :--- |
-| **Auditable by default** | Every analysis is a versioned `AnalysisRun` with immutable inputs, engine version, and standard reference. |
+| **Traceable by default** | Analysis runs record input provenance, engine version, assumptions, and an event snapshot; immutable storage is not yet implemented. |
 | **Pluggable calculation engine** | POF/COF calculators sit behind interfaces — swap the engine without touching data models or API. |
 | **API 580 as architecture** | Data management, damage mechanism review, and workflow are first-class — not bolted on. |
 | **Standards awareness** | Standards are domain references only; this prototype does not claim API 581 conformance. |
@@ -86,8 +86,8 @@ The system uses a **layered architecture with a pluggable calculation engine**:
 ├──────────────────────────────────────────────────────────┤
 │  Calculation Engine Interface  ◀── swap here             │
 │  IPofCalculator · ICofCalculator · IRiskMatrix           │
-│    ├── impl_internal    (simplified / MVP)               │
-│    └── impl_api581      (full standard)                  │
+│    ├── impl_internal    (illustrative / nonconforming)   │
+│    └── validated engine (planned; not included)          │
 ├──────────────────────────────────────────────────────────┤
 │  Data Access Layer  (SQLAlchemy 2.x · PostgreSQL)        │
 └──────────────────────────────────────────────────────────┘
@@ -226,7 +226,7 @@ We welcome contributions — especially from inspection engineers, RBI practitio
 
 ## ⚠️ Disclaimer
 
-This software implements calculations based on published API standards but is **not certified by API**. It is provided as-is for engineering use under professional judgment. Users are responsible for:
+This software references API RP 580/581, but its current screening calculations are **not implementations of those standards and are not certified by API**. It is provided as-is and must not be used as the sole basis for engineering decisions. Users are responsible for:
 
 - Validating results against their organization's RBI Basis
 - Ensuring competent engineering review before acting on any recommendation
@@ -268,7 +268,7 @@ Apache 2.0 was chosen over MIT to provide an explicit patent grant — appropria
 
 **هدف:** جایگزینی بازرسی‌های زمان‌محور با برنامه‌ریزی مبتنی بر ریسک، به همراه قابلیت ممیزی کامل (Audit Trail) که امکان بازسازی هر تحلیل را برای ممیز مستقل فراهم می‌کند.
 
-**وضعیت فعلی (MVP):** تمرکز بر مکانیزم **نازک‌شدگی (Thinning)** — رایج‌ترین و مستندترین مکانیزم آسیب. ترک، CUI، و سایر مکانیزم‌ها در نقشه راه قرار دارند.
+**وضعیت فعلی (MVP):** مدل‌های POF/COF و غربالگری مکانیزم‌ها صرفاً داخلی و نمایشی‌اند و انطباق API را ادعا نمی‌کنند. تحلیل بدون ثبت کیفیت و منشأ داده یا فرض مهندسی تأییدشده اجرا نمی‌شود.
 
 **شروع سریع:** از **GitHub Codespaces** استفاده کنید؛ پس از باز شدن Codespace دستور `uvicorn app.main:app --reload` را اجرا و مستندات API را در مسیر `/docs` ببینید.
 
@@ -359,3 +359,31 @@ RBI calculations. SCC checklist inputs (`susceptible_material`,
 missing inputs return `indeterminate`. These outputs must not be used for
 inspection decisions or safety-critical operations without an independently
 validated engineering model and qualified review.
+
+## Data provenance and quality gate
+
+The `/data-platform` API records field-level sources, source dates, quality
+statuses, engineering assumptions, approvals, and traceable events. Before an
+equipment analysis runs, the service requires verified data or an approved
+assumption for the equipment, analyzed components, an explicit damage-mechanism
+review and assignment statuses, CML inspection history, inspection readings,
+and active damage-mechanism inputs. Missing, unverified, or defaulted evidence
+blocks analysis with HTTP 409 and a list of the fields to resolve. Approved
+assumptions are applied as calculation inputs and captured in the run's input
+snapshot.
+
+The demo seed labels its synthetic values `unverified`; this is intentional,
+so demo data cannot silently pass the analysis gate. Existing databases are
+not auto-certified or backfilled and must have evidence recorded explicitly.
+
+Key endpoints are `POST /data-platform/quality-records`,
+`POST /data-platform/assumptions`, `POST /data-platform/assumptions/{id}/approve`,
+`POST /data-platform/assumptions/{id}/deactivate`, `POST /data-platform/workflows`,
+and `GET /data-platform/events`. Use `/docs` for request and response schemas.
+Actor names are currently supplied by the caller; authentication and
+authorization have not yet been implemented.
+
+The standard baseline lists API RP 580/581/571 editions centrally, but every
+current damage-mechanism module remains `internal_screening`; no module has
+signed-off reference cases. The system therefore labels its results as
+internal screening and makes no API-conformance claim.

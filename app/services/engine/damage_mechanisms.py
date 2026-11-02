@@ -6,7 +6,7 @@ class CUIDamageMechanismEvaluator:
     mechanism_name = "CUI"
     minimum_temperature_c = -12.0
     maximum_temperature_c = 175.0
-    reference = "API 571 §4.3.1 (simplified temperature screening)"
+    reference = "Internal CUI susceptibility screen; not a validated API 571 model"
 
     def assess(
         self,

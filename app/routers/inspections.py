@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services import audit
+from ..services.data_platform import DataPlatformService
 
 router = APIRouter(tags=["inspections"])
 
@@ -17,6 +18,19 @@ def add_inspection(cml_id: int, payload: schemas.InspectionCreate, db: Session =
     db.add(rec)
     db.flush()
     audit.log(db, rec, "create")
+    DataPlatformService(db).record_event(
+        "inspection_recorded",
+        "inspection_record",
+        rec.id,
+        str(audit.current_user_id.get()),
+        {
+            "cml_id": cml_id,
+            "inspection_date": payload.inspection_date.isoformat(),
+            "thickness_mm": payload.thickness_mm,
+            "method": payload.method,
+            "effectiveness": payload.effectiveness,
+        },
+    )
     db.commit()
     db.refresh(rec)
     return rec

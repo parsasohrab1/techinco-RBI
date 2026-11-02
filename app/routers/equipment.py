@@ -4,12 +4,17 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..services import audit
+from ..standards.baseline import Baseline
 
 router = APIRouter(prefix="/equipment", tags=["equipment"])
 
 
 @router.post("", response_model=schemas.EquipmentOut)
 def create_equipment(payload: schemas.EquipmentCreate, db: Session = Depends(get_db)):
+    try:
+        Baseline.equipment_scope.validate(payload.equipment_type)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     eq = models.Equipment(**payload.model_dump())
     db.add(eq)
     db.flush()

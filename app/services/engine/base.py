@@ -63,7 +63,7 @@ class EngineMetadata:
     standard_ref: str
 
 
-class ICalculationEngine(ABC):
+class IEngineCalculatorBundle(ABC):
     metadata: EngineMetadata
     pof_calculator: IPofCalculator
     cof_calculator: ICofCalculator

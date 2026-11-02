@@ -1,10 +1,41 @@
 from datetime import date, datetime
+
 from sqlalchemy import (
-    Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, false,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+from .models_data_platform import (
+    ApprovalWorkflow,
+    DataQualityStatus,
+    EngineeringAssumption,
+    TraceableEvent,
+)
+
+__all__ = [
+    "ApprovalWorkflow",
+    "AnalysisRun",
+    "AuditLog",
+    "CML",
+    "CMLAnalysisResult",
+    "Component",
+    "ComponentDamageMechanism",
+    "DamageMechanism",
+    "DataQualityStatus",
+    "EngineeringAssumption",
+    "Equipment",
+    "InspectionRecord",
+    "TraceableEvent",
+]
 
 
 class Equipment(Base):

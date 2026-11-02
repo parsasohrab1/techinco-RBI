@@ -1,4 +1,6 @@
 from datetime import date, datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -142,3 +144,100 @@ class CMMSRunSyncOut(BaseModel):
     eligible_count: int
     created_count: int
     work_orders: list[CMMSWorkOrderOut]
+
+
+DataEntityType = Literal[
+    "equipment",
+    "component",
+    "cml",
+    "inspection_record",
+    "component_damage_mechanism",
+    "analysis_run",
+]
+
+
+class DataQualityCreate(BaseModel):
+    entity_type: DataEntityType
+    entity_id: int = Field(gt=0)
+    field_name: str = Field(min_length=1, max_length=80)
+    source: str = Field(min_length=1, max_length=120)
+    source_date: datetime
+    actor: str = Field(min_length=1, max_length=80)
+    quality: Literal["unverified", "verified", "assumed", "defaulted"]
+    note: str = ""
+
+
+class DataQualityOut(BaseModel):
+    id: int
+    entity_type: DataEntityType
+    entity_id: int
+    field_name: str
+    source: str
+    source_date: datetime
+    recorded_by: str
+    recorded_at: datetime
+    quality: str
+    note: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EngineeringAssumptionCreate(BaseModel):
+    entity_type: DataEntityType
+    entity_id: int = Field(gt=0)
+    field_name: str = Field(min_length=1, max_length=80)
+    assumed_value: str = Field(min_length=1)
+    basis: str = Field(min_length=1)
+    actor: str = Field(min_length=1, max_length=80)
+
+
+class EngineeringAssumptionOut(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    field_name: str
+    assumed_value: str
+    basis: str
+    approved_by: str | None
+    approved_at: datetime | None
+    is_active: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ActorAction(BaseModel):
+    actor: str = Field(min_length=1, max_length=80)
+
+
+class ApprovalWorkflowCreate(BaseModel):
+    entity_type: DataEntityType
+    entity_id: int = Field(gt=0)
+    actor: str = Field(min_length=1, max_length=80)
+
+
+class ApprovalWorkflowDecision(BaseModel):
+    decision: Literal["reviewed", "approved", "rejected"]
+    actor: str = Field(min_length=1, max_length=80)
+    comment: str = ""
+
+
+class ApprovalWorkflowOut(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    stage: str
+    requested_by: str
+    requested_at: datetime
+    decided_by: str | None
+    decided_at: datetime | None
+    comment: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TraceableEventOut(BaseModel):
+    id: int
+    event_type: str
+    entity_type: str
+    entity_id: int
+    payload: dict
+    actor: str
+    occurred_at: datetime
+    model_config = ConfigDict(from_attributes=True)
