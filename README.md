@@ -1,0 +1,322 @@
+# README.md for the Repository
+
+Below is a **production-quality README** aligned with the BRS/SRS we defined. It's in English (GitHub standard for discoverability) with a Persian summary for the local team. Copy it as `README.md` in the repo root.
+
+---
+
+```markdown
+# 🛢️ RBI Enterprise — Risk-Based Inspection Platform
+
+> An open, standards-aligned Risk-Based Inspection (RBI) platform for fixed equipment in refining, petrochemical, and process industries — built on **API RP 580** and **API RP 581**.
+
+[![Status](https://img.shields.io/badge/status-MVP%20in%20development-yellow)](./docs/ROADMAP.md)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
+[![API 580](https://img.shields.io/badge/API%20RP%20580-4th%20Ed.-navy)](https://www.api.org/)
+[![API 581](https://img.shields.io/badge/API%20RP%20581-4th%20Ed.-navy)](https://www.api.org/)
+
+---
+
+## 📖 Overview
+
+**RBI Enterprise** is a full-lifecycle platform for managing Risk-Based Inspection programs. It implements the organizational framework of **API RP 580** and the quantitative methodology of **API RP 581** to help asset integrity teams:
+
+- **Rank** equipment by risk using Probability of Failure (POF) and Consequence of Failure (COF)
+- **Plan** inspection intervals and scopes based on quantified risk — not fixed calendars
+- **Document** every decision with a full, reconstructible audit trail
+- **Integrate** with CMMS/ERP systems (SAP PM, IBM Maximo) for closed-loop inspection workflows
+
+This project is **not** a black-box calculator. Every risk output carries a reference to the governing standard section and the engine version that produced it — so an independent auditor can reproduce the exact result.
+
+> ⚠️ **Status:** The MVP focuses on **thinning (wall loss)** as the first damage mechanism. Cracking, CUI, fatigue, and other mechanisms are on the roadmap.
+
+---
+
+## 🎯 Design Principles
+
+| Principle | What it means in practice |
+| :--- | :--- |
+| **Auditable by default** | Every analysis is a versioned `AnalysisRun` with immutable inputs, engine version, and standard reference. |
+| **Pluggable calculation engine** | POF/COF calculators sit behind interfaces — swap the engine without touching data models or API. |
+| **API 580 as architecture** | Data management, damage mechanism review, and workflow are first-class — not bolted on. |
+| **API 581 as methodology** | Quantitative POF/COF per the standard, with explicit traceability. |
+| **Data quality over data volume** | Missing data is explicitly handled (blocked, assumed, or defaulted) — never silently ignored. |
+
+---
+
+## ✨ Key Features (MVP + Roadmap)
+
+### ✅ MVP (Current Scope)
+- Equipment → Component → CML hierarchy with data quality tracking
+- **Thinning** damage mechanism (POF via normal distribution of wall thickness)
+- Simplified COF (safety / environmental / economic categories)
+- 5×5 risk matrix with Low / Medium / High / Critical levels
+- Recommended inspection interval based on remaining life
+- Audit log with user, timestamp, and before/after values
+- Per-CML analysis reports (JSON / CSV)
+
+### 🗺️ Roadmap (Phase 2+)
+- Additional damage mechanisms: **Cracking**, **CUI**, **Thermal Fatigue** (per API 571)
+- Full three-dimensional COF (safety, environmental, economic with configurable weights)
+- Corrosion Circuits as a grouping layer
+- Dashboard with aggregated risk distribution and trends
+- CMMS/ERP integration adapters (SAP PM, Maximo)
+- SSO (OIDC/SAML) + fine-grained RBAC
+- Immutable analysis run history with diff view
+- Compliance report generator (API 580 Section 16 checklist)
+
+See [`docs/ROADMAP.md`](./docs/ROADMAP.md) for the full plan.
+
+---
+
+## 🏗️ Architecture
+
+The system uses a **layered architecture with a pluggable calculation engine**:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Presentation Layer  (Web UI: Dashboard, Entry, Reports) │
+├──────────────────────────────────────────────────────────┤
+│  API Layer  (REST / OpenAPI 3.0 · Auth · Validation)     │
+├──────────────────────────────────────────────────────────┤
+│  Application Services                                    │
+│  DataService · InspectionService · AnalysisOrchestrator  │
+│  AuditService · IntegrationAdapter (CMMS/ERP)            │
+├──────────────────────────────────────────────────────────┤
+│  Calculation Engine Interface  ◀── swap here             │
+│  IPofCalculator · ICofCalculator · IRiskMatrix           │
+│    ├── impl_internal    (simplified / MVP)               │
+│    └── impl_api581      (full standard)                  │
+├──────────────────────────────────────────────────────────┤
+│  Data Access Layer  (SQLAlchemy 2.x · PostgreSQL)        │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Tech Stack**
+
+| Layer | Technology |
+| :--- | :--- |
+| Backend | Python 3.11 · FastAPI · Pydantic v2 |
+| ORM / DB | SQLAlchemy 2.x · PostgreSQL 15 (SQLite for local dev) |
+| Calculation | NumPy · SciPy (`scipy.stats`) |
+| Frontend | React (planned — API-first during MVP) |
+| Infra | Docker · GitHub Actions · GitHub Codespaces |
+
+---
+
+## 🚀 Quick Start
+
+### Option 1 — GitHub Codespaces (recommended)
+
+1. Click **Code → Codespaces → Create codespace on main**
+2. Codespace automatically installs dependencies via `.devcontainer/`
+3. Start the API:
+
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0
+   ```
+4. Open the forwarded port `8000` → `/docs` for the interactive API explorer.
+
+### Option 2 — Local Development
+
+**Prerequisites:** Python 3.11+, PostgreSQL 15+ (optional — SQLite works out of the box)
+
+```bash
+git clone https://github.com/<your-org>/rbi-enterprise.git
+cd rbi-enterprise
+
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env             # edit DB credentials if using PostgreSQL
+python seed.py                   # load demo data
+uvicorn app.main:app --reload
+```
+
+Visit **http://127.0.0.1:8000/docs** to explore the API.
+
+---
+
+## 📂 Repository Structure
+
+```
+rbi-enterprise/
+├── app/
+│   ├── main.py                    # FastAPI app entrypoint
+│   ├── database.py                # DB engine + session
+│   ├── models.py                  # SQLAlchemy ORM models
+│   ├── schemas.py                 # Pydantic request/response schemas
+│   ├── routers/                   # API endpoint modules
+│   │   ├── equipment.py
+│   │   ├── inspections.py
+│   │   ├── analysis.py
+│   │   └── reports.py
+│   ├── services/                  # Business logic
+│   │   ├── thinning.py            # Thinning POF calculation
+│   │   ├── risk.py                # COF + risk matrix
+│   │   ├── audit.py               # Audit trail writer
+│   │   └── engine/                # Calculation engine interface
+│   │       ├── base.py            # IPofCalculator, ICofCalculator
+│   │       └── impl_internal.py   # MVP implementation
+│   └── integrations/              # CMMS/ERP adapters (phase 2)
+├── tests/                         # Pytest unit + integration tests
+├── docs/
+│   ├── BRS.md                     # Business Requirements Specification
+│   ├── SRS.md                     # System Requirements Specification
+│   ├── ROADMAP.md
+│   └── adr/                       # Architecture Decision Records
+├── .devcontainer/                 # Codespaces configuration
+├── seed.py                        # Demo data loader
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+| :--- | :--- |
+| [`docs/BRS.md`](./docs/BRS.md) | Business Requirements Specification — *what & why* |
+| [`docs/SRS.md`](./docs/SRS.md) | System Requirements Specification — *how, at system level* |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | Phase 1 → Phase 3 feature roadmap |
+| [`docs/adr/`](./docs/adr/) | Architecture Decision Records (why we chose what) |
+| `http://localhost:8000/docs` | Auto-generated OpenAPI reference |
+
+**Standards referenced:**
+- **API RP 580** (4th Ed., 2023 + Addendum 2025) — Risk-Based Inspection
+- **API RP 581** (4th Ed., 2025) — Risk-Based Inspection Methodology
+- **API RP 571** (3rd Ed., 2020) — Damage Mechanisms Affecting Fixed Equipment
+
+---
+
+## 🧪 Testing
+
+```bash
+pytest                          # run all tests
+pytest --cov=app tests/         # with coverage report
+```
+
+Target coverage: **≥ 80%** for services and calculation engine (see SRS §5, TNFR-05).
+
+Example — verify a thinning POF calculation:
+
+```bash
+pytest tests/services/test_thinning.py -v
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions — especially from inspection engineers, RBI practitioners, and developers working in asset integrity.
+
+1. Read [`CONTRIBUTING.md`](./CONTRIBUTING.md) and the [Code of Conduct](./CODE_OF_CONDUCT.md)
+2. Open an issue to discuss substantial changes **before** writing code
+3. Fork → branch (`feature/your-feature`) → commit → PR
+4. All PRs require passing CI and at least one reviewer
+
+**Good first issues:** Look for the `good first issue` and `help wanted` labels.
+
+**Domain knowledge is as valuable as code.** If you know API 581 and spot an error in our calculation logic, please open an issue — that's a critical contribution.
+
+---
+
+## ⚠️ Disclaimer
+
+This software implements calculations based on published API standards but is **not certified by API**. It is provided as-is for engineering use under professional judgment. Users are responsible for:
+
+- Validating results against their organization's RBI Basis
+- Ensuring competent engineering review before acting on any recommendation
+- Complying with all applicable codes and regulations
+
+**Do not use this software as the sole basis for safety-critical inspection deferral decisions** without qualified engineering review.
+
+---
+
+## 📄 License
+
+Licensed under the **Apache License 2.0** — see [`LICENSE`](./LICENSE) for details.
+
+Apache 2.0 was chosen over MIT to provide an explicit patent grant — appropriate for standards-based engineering software.
+
+---
+
+## 🙏 Acknowledgments
+
+- API — for publishing RP 580, 581, and 571 (this project is unaffiliated)
+- The open-source asset integrity community — for prior art and shared knowledge
+- Contributors from refining and petrochemical inspection teams
+
+---
+
+## 📬 Contact
+
+- **Issues:** [GitHub Issues](https://github.com/<your-org>/rbi-enterprise/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/<your-org>/rbi-enterprise/discussions)
+- **Security disclosures:** see [`SECURITY.md`](./SECURITY.md) — please do **not** open public issues for vulnerabilities
+
+---
+
+<div dir="rtl" align="right">
+
+## 🇮🇷 خلاصه فارسی
+
+**RBI Enterprise** یک پلتفرم متن‌باز برای مدیریت بازرسی مبتنی بر ریسک تجهیزات ثابت است که بر پایه استانداردهای **API RP 580** (چارچوب و ممیزی) و **API RP 581** (روش‌شناسی کمی) طراحی شده است.
+
+**هدف:** جایگزینی بازرسی‌های زمان‌محور با برنامه‌ریزی مبتنی بر ریسک، به همراه قابلیت ممیزی کامل (Audit Trail) که امکان بازسازی هر تحلیل را برای ممیز مستقل فراهم می‌کند.
+
+**وضعیت فعلی (MVP):** تمرکز بر مکانیزم **نازک‌شدگی (Thinning)** — رایج‌ترین و مستندترین مکانیزم آسیب. ترک، CUI، و سایر مکانیزم‌ها در نقشه راه قرار دارند.
+
+**شروع سریع:** از **GitHub Codespaces** استفاده کنید؛ پس از باز شدن Codespace دستور `uvicorn app.main:app --reload` را اجرا و مستندات API را در مسیر `/docs` ببینید.
+
+**مستندات کلیدی:**
+- [`docs/BRS.md`](./docs/BRS.md) — نیازمندی‌های کسب‌وکار
+- [`docs/SRS.md`](./docs/SRS.md) — نیازمندی‌های سیستم
+- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — نقشه راه فازها
+
+**مشارکت:** دانش دامنه‌ای (API 581) به اندازه کدنویسی ارزشمند است. اگر خطایی در منطق محاسباتی می‌بینید، Issue باز کنید.
+
+**سلب مسئولیت:** این نرم‌افزار گواهی‌شده توسط API نیست و باید تحت قضاوت مهندسی متخصص و مطابق با RBI Basis سازمان شما اعتبارسنجی شود.
+
+</div>
+```
+
+---
+
+## 📋 Files to Also Create Alongside README
+
+To make the README's links actually work, create these companion files:
+
+| File | Purpose | Priority |
+| :--- | :--- | :--- |
+| `LICENSE` | Full Apache 2.0 text | **Required** |
+| `CONTRIBUTING.md` | Contribution guidelines, branch naming, PR checklist | **Required** |
+| `CODE_OF_CONDUCT.md` | Standard Contributor Covenant | **Required** |
+| `SECURITY.md` | How to report vulnerabilities privately | High |
+| `docs/BRS.md` | Copy of the BRS we wrote | High |
+| `docs/SRS.md` | Copy of the SRS we wrote | High |
+| `docs/ROADMAP.md` | Phase 1/2/3 breakdown | High |
+| `.env.example` | Template for environment variables | **Required** |
+| `.gitignore` | Python + IDE + `.env` + `*.db` | **Required** |
+| `requirements.txt` | Pinned dependencies | **Required** |
+| `.devcontainer/devcontainer.json` | Codespaces configuration | **Required** for Codespaces |
+| `tests/` | Initial test structure (even if empty) | Medium |
+
+---
+
+## 💡 Why This README Works
+
+A few deliberate choices worth noting:
+
+1. **Disclaimer is prominent, not buried** — for engineering software that touches safety decisions, this protects both you and users. It's not legal boilerplate; it's genuinely important.
+2. **"Data quality over data volume" and "Auditable by default" as principles** — these telegraph to potential contributors that this isn't a toy project. It sets expectations.
+3. **Persian section at the bottom** — since the target users are Iranian refineries/petrochemicals, this signals inclusiveness without making the English README harder to scan for international contributors.
+4. **Domain knowledge explicitly welcomed** — very few open-source asset-integrity projects exist; the biggest barrier to contribution is API 581 knowledge, not code. This invites inspection engineers, not just developers.
+5. **Apache 2.0 over MIT** — explained in one line. This is the kind of detail that builds trust with corporate contributors.
+6. **The architecture diagram in ASCII** — renders correctly everywhere (GitHub, terminal, mobile). Fancy image diagrams break in forks.
+
+---
+
