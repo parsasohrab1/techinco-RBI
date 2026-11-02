@@ -1,12 +1,14 @@
 import csv
 import io
 from collections import Counter
+from math import ceil
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -18,13 +20,18 @@ RISK_LEVELS = ("Critical", "High", "Medium", "Low")
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def risk_dashboard(request: Request, db: Session = Depends(get_db)):
+def risk_dashboard(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 100,
+):
     latest_run_ids = (
         db.query(func.max(models.AnalysisRun.id).label("run_id"))
         .group_by(models.AnalysisRun.equipment_id)
         .subquery()
     )
-    rows = (
+    portfolio_query = (
         db.query(
             models.AnalysisRun,
             models.Equipment,
@@ -37,30 +44,114 @@ def risk_dashboard(request: Request, db: Session = Depends(get_db)):
         .join(models.CMLAnalysisResult, models.CMLAnalysisResult.run_id == models.AnalysisRun.id)
         .join(models.CML, models.CMLAnalysisResult.cml_id == models.CML.id)
         .join(models.Component, models.CML.component_id == models.Component.id)
-        .order_by(models.Equipment.tag_number, models.Component.name, models.CML.name)
-        .all()
     )
 
-    risk_counts = Counter(result.risk_level for _, _, result, _, _ in rows)
-    latest_runs = {}
-    for run, equipment, _, _, _ in rows:
-        latest_runs[run.id] = (run, equipment)
+    cml_count, short_interval_count, average_interval = (
+        portfolio_query.with_entities(
+            func.count(models.CMLAnalysisResult.id),
+            func.sum(
+                case(
+                    (models.CMLAnalysisResult.recommended_interval_years <= 2, 1),
+                    else_=0,
+                )
+            ),
+            func.avg(models.CMLAnalysisResult.recommended_interval_years),
+        ).one()
+    )
+    cml_count = cml_count or 0
+    short_interval_count = short_interval_count or 0
+    average_interval = average_interval or 0
+    risk_counts = Counter(
+        dict(
+            portfolio_query.with_entities(
+                models.CMLAnalysisResult.risk_level,
+                func.count(models.CMLAnalysisResult.id),
+            )
+            .group_by(models.CMLAnalysisResult.risk_level)
+            .all()
+        )
+    )
+
+    priority_order = case(
+        (models.CMLAnalysisResult.risk_level == "Critical", 0),
+        (models.CMLAnalysisResult.risk_level == "High", 1),
+        (models.CMLAnalysisResult.risk_level == "Medium", 2),
+        (models.CMLAnalysisResult.risk_level == "Low", 3),
+        else_=4,
+    )
+    priority_rows = (
+        portfolio_query.order_by(
+            priority_order,
+            models.CMLAnalysisResult.recommended_interval_years,
+            models.Equipment.tag_number,
+        )
+        .limit(8)
+        .all()
+    )
+    page_count = max(ceil(cml_count / page_size), 1)
+    page = min(page, page_count)
+    rows = (
+        portfolio_query.order_by(
+            models.Equipment.tag_number,
+            models.Component.name,
+            models.CML.name,
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+    equipment_count = (
+        portfolio_query.with_entities(
+            func.count(func.distinct(models.AnalysisRun.id))
+        ).scalar()
+        or 0
+    )
+
+    risk_distribution = [
+        {
+            "level": level,
+            "count": risk_counts.get(level, 0),
+            "percent": (
+                risk_counts.get(level, 0) * 100 / cml_count
+                if cml_count
+                else 0
+            ),
+        }
+        for level in RISK_LEVELS
+    ]
 
     return templates.TemplateResponse(
         request=request,
         name="risk_dashboard.html",
         context={
             "rows": rows,
+            "priority_rows": priority_rows,
             "risk_levels": RISK_LEVELS,
             "risk_counts": risk_counts,
-            "equipment_count": len(latest_runs),
-            "cml_count": len(rows),
+            "risk_distribution": risk_distribution,
+            "equipment_count": equipment_count,
+            "cml_count": cml_count,
+            "page_result_count": len(rows),
+            "high_priority_count": (
+                risk_counts.get("Critical", 0) + risk_counts.get("High", 0)
+            ),
+            "short_interval_count": short_interval_count,
+            "average_interval": average_interval,
+            "latest_run_count": equipment_count,
+            "page": page,
+            "page_size": page_size,
+            "page_count": page_count,
+            "previous_page": page - 1 if page > 1 else None,
+            "next_page": page + 1 if page < page_count else None,
         },
     )
 
 
 @router.get("/run/{run_id}/worklist.csv")
-def worklist_csv(run_id: int, db: Session = Depends(get_db)):
+def worklist_csv(
+    run_id: int,
+    db: Annotated[Session, Depends(get_db)],
+):
     run = db.get(models.AnalysisRun, run_id)
     if not run:
         raise HTTPException(404, "Run not found")

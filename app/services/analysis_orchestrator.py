@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models
 from ..config import settings
@@ -53,8 +53,25 @@ def _column_snapshot(entity) -> dict:
 
 
 def analyze_equipment(db: Session, equipment: models.Equipment) -> models.AnalysisRun:
+    equipment = (
+        db.query(models.Equipment)
+        .options(
+            selectinload(models.Equipment.components).selectinload(
+                models.Component.cmls
+            ).selectinload(models.CML.inspections),
+            selectinload(models.Equipment.components).selectinload(
+                models.Component.damage_mechanisms
+            ).joinedload(models.ComponentDamageMechanism.damage_mechanism),
+        )
+        .filter(models.Equipment.id == equipment.id)
+        .one()
+    )
     data_platform = DataPlatformService(db)
     data_quality = data_platform.require_analysis_quality(equipment)
+    evidence_by_entity: dict[tuple[str, int], list[dict]] = {}
+    for evidence in data_quality.evidence:
+        key = (evidence["entity_type"], evidence["entity_id"])
+        evidence_by_entity.setdefault(key, []).append(evidence)
     equipment_input = data_platform.analysis_input("equipment", equipment, data_quality)
     engine = get_engine()
     run = models.AnalysisRun(
@@ -129,34 +146,19 @@ def analyze_equipment(db: Session, equipment: models.Equipment) -> models.Analys
                 }
                 for mechanism in active_dms
             ]
-            evidence_for_cml = [
-                item for item in data_quality.evidence
-                if (
-                    item["entity_type"] == "equipment"
-                    and item["entity_id"] == equipment.id
+            evidence_for_cml = (
+                evidence_by_entity.get(("equipment", equipment.id), [])
+                + evidence_by_entity.get(("component", comp.id), [])
+                + evidence_by_entity.get(("cml", cml.id), [])
+            )
+            for inspection in inspections:
+                evidence_for_cml += evidence_by_entity.get(
+                    ("inspection_record", inspection.id), []
                 )
-                or (
-                    item["entity_type"] == "component"
-                    and item["entity_id"] == comp.id
+            for mechanism in active_dms:
+                evidence_for_cml += evidence_by_entity.get(
+                    ("component_damage_mechanism", mechanism.id), []
                 )
-                or (
-                    item["entity_type"] == "cml"
-                    and item["entity_id"] == cml.id
-                )
-                or (
-                    item["entity_type"] == "inspection_record"
-                    and item["entity_id"] in {inspection.id for inspection in inspections}
-                )
-                or (
-                    item["entity_type"] == "component_damage_mechanism"
-                    and item["entity_id"] in {mechanism.id for mechanism in active_dms}
-                )
-            ]
-            assumed_fields = {
-                (item["entity_type"], item["entity_id"], item["field_name"])
-                for item in evidence_for_cml
-                if item.get("quality") == "assumed"
-            }
             engine_snapshot = EngineInputSnapshot(
                 equipment_id=equipment.id,
                 component_id=comp.id,
@@ -173,11 +175,7 @@ def analyze_equipment(db: Session, equipment: models.Equipment) -> models.Analys
                 },
                 assumptions=[
                     item for item in evidence_for_cml
-                    if (
-                        item["entity_type"],
-                        item["entity_id"],
-                        item["field_name"],
-                    ) in assumed_fields
+                    if item.get("quality") == "assumed"
                 ],
                 data_quality={
                     f"{item['entity_type']}.{item['entity_id']}.{item['field_name']}":

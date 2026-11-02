@@ -8,7 +8,7 @@ from datetime import date as date_type
 from types import SimpleNamespace
 from typing import Any
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from sqlalchemy.orm import Session
 
 from .. import models
@@ -217,12 +217,43 @@ class DataPlatformService:
                         )
                     )
 
+        requirements = list(dict.fromkeys(requirements))
+        entity_ids: dict[str, set[int]] = {}
+        for entity_type, entity_id, _ in requirements:
+            entity_ids.setdefault(entity_type, set()).add(entity_id)
+
+        latest_records: dict[tuple[str, int, str], DataQualityStatus] = {}
+        for entity_type, ids in entity_ids.items():
+            ordered_ids = sorted(ids)
+            for start in range(0, len(ordered_ids), 900):
+                records = self.db.scalars(
+                    select(DataQualityStatus)
+                    .where(
+                        DataQualityStatus.entity_type == entity_type,
+                        DataQualityStatus.entity_id.in_(
+                            ordered_ids[start : start + 900]
+                        ),
+                    )
+                    .order_by(DataQualityStatus.id)
+                )
+                for record in records:
+                    key = (record.entity_type, record.entity_id, record.field_name)
+                    latest_records[key] = record
+
         for entity_type, entity_id, field_name in requirements:
-            try:
-                record = self.require_quality(entity_type, entity_id, field_name)
-            except DataPlatformError as error:
-                missing.extend(error.missing_fields)
+            label = f"{entity_type}.{entity_id}.{field_name}"
+            record = latest_records.get((entity_type, entity_id, field_name))
+            if record is None:
+                missing.append(label)
                 continue
+            if record.quality not in {"verified", "assumed"}:
+                missing.append(label)
+                continue
+            if record.quality == "assumed":
+                assumption = self._active_assumption(entity_type, entity_id, field_name)
+                if assumption is None or assumption.approved_at is None:
+                    missing.append(label)
+                    continue
             evidence.append(
                 {
                     "entity_type": entity_type,
@@ -237,10 +268,6 @@ class DataPlatformService:
                 }
             )
             if record.quality == "assumed":
-                assumption = self._active_assumption(entity_type, entity_id, field_name)
-                if assumption is None or assumption.approved_at is None:
-                    missing.append(f"{entity_type}.{entity_id}.{field_name}")
-                    continue
                 try:
                     value = self._parse_assumption(
                         entity_type,

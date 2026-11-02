@@ -9,7 +9,9 @@ def test_risk_dashboard_empty_state(client):
 
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
-    assert "No analysis results yet" in r.text
+    assert "Your portfolio is ready for its first analysis" in r.text
+    assert "Internal screening — not validated for API RP 580/581 conformity" in r.text
+    assert 'id="assessment-search"' not in r.text
 
 
 def test_full_workflow(client, record_quality):
@@ -174,6 +176,15 @@ def test_full_workflow(client, record_quality):
     assert reconstruction.status_code == 200
     assert reconstruction.json()["compliance_claim"].startswith("No API RP")
     assert reconstruction.json()["chain_of_custody"][0]["assumptions"][0]["assumed_value"] == "200"
+    dashboard = client.get("/reports/dashboard")
+    assert dashboard.status_code == 200
+    assert "V-900" in dashboard.text
+    assert "Latest CML assessments" in dashboard.text
+    assert 'data-risk="' in dashboard.text
+    assert "Portfolio snapshot" in dashboard.text
+    assert "1 shown · 1 total" in dashboard.text
+    assert client.get("/reports/dashboard?page=0").status_code == 422
+    assert client.get("/reports/dashboard?page_size=101").status_code == 422
     mechanism_assessments = data["results"][0]["details"]["damage_mechanisms"]
     cui_assessment = next(
         item for item in mechanism_assessments if item["mechanism"] == "CUI"
