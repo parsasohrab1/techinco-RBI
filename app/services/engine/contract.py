@@ -2,10 +2,10 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import isfinite
 from threading import RLock
-from typing import Any
+from typing import Any, ClassVar
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ class EngineOutput:
     engine_version: str = ""
     compliance_status: str = "internal_screening"
     calculated_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
 
     def __post_init__(self) -> None:
@@ -93,7 +93,7 @@ class ICalculationEngine(ABC):
 
 
 class EngineRegistry:
-    _engines: dict[str, ICalculationEngine] = {}
+    _engines: ClassVar[dict[str, ICalculationEngine]] = {}
     _lock = RLock()
 
     @classmethod

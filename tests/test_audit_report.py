@@ -2,6 +2,7 @@ import json
 
 from app.models import AnalysisRun, CMLAnalysisResult, Equipment
 from app.services.audit_report import AuditReconstructionReport
+from app.standards.knowledge_base import StandardsKnowledgeBase
 
 
 def test_audit_reconstruction_reports_snapshot_and_limitations():
@@ -45,3 +46,6 @@ def test_audit_reconstruction_reports_snapshot_and_limitations():
     assert report["chain_of_custody"][0]["inputs"]["component"]["t_min_mm"] == 8
     assert report["calculation_trace"][0]["pof"]["details"]["rate"] == 0.1
     assert report["limitations"]
+    appendix = report["traceability_appendix"]
+    assert "do not establish" in appendix["scope"]
+    assert appendix["entries"] == StandardsKnowledgeBase.traceability_matrix()

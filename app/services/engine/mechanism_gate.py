@@ -7,6 +7,12 @@ from ...standards.baseline import (
     Baseline,
     ComplianceStatus,
 )
+from ...standards.knowledge_base import StandardsKnowledgeBase
+
+
+def check_api581_coverage(mechanism: str) -> bool:
+    """Whether traceability entries exist; this does not imply model coverage or validation."""
+    return bool(StandardsKnowledgeBase.by_mechanism(mechanism))
 
 
 @dataclass(frozen=True)

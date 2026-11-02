@@ -6,6 +6,11 @@ verification, certification, or claim of conformity. Clause identifiers and
 summaries must be checked against the organization's licensed editions and RBI
 basis before use.
 
+The audit reconstruction appendix and `Baseline.api580_requirements()` /
+`Baseline.api581_requirements()` expose a queryable subset of these mappings.
+That index is intentionally partial and reports traceability, not completeness
+or conformance.
+
 | Standard reference | Topic | Code module | Current status | Acceptance evidence / limitation |
 |---|---|---|---|---|
 | API RP 580 §8 | Data sources and quality | `app/models_data_platform.py::DataQualityStatus`; `app/services/data_platform.py::require_analysis_quality` | Implemented for analysis-gating inputs | `tests/test_api.py::test_full_workflow` proves missing or unverified required evidence blocks analysis with HTTP 409. This is field-level provenance, not automatic data verification. |

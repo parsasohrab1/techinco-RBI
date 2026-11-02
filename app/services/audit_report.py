@@ -1,10 +1,11 @@
 """Reconstruction report assembled from persisted analysis inputs and outputs."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from ..models import AnalysisRun, CMLAnalysisResult
+from ..standards.knowledge_base import StandardsKnowledgeBase
 
 
 class AuditReconstructionReport:
@@ -62,8 +63,10 @@ class AuditReconstructionReport:
             else "internal_screening"
         )
         limitations = [
-            "This reconstruction reflects stored inputs and outputs; it does not "
-            "independently recalculate the analysis.",
+            (
+                "This reconstruction reflects stored inputs and outputs; it does not "
+                "independently recalculate the analysis."
+            ),
             "The event and audit records are not cryptographically immutable.",
             "Actor identifiers are caller-supplied until authentication is implemented.",
         ]
@@ -75,7 +78,7 @@ class AuditReconstructionReport:
 
         return {
             "report_type": "RBI_AUDIT_RECONSTRUCTION",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "run_id": self.run.id,
             "equipment_tag": self.run.equipment.tag_number,
             "engine": engines[0] if engines else {
@@ -90,6 +93,13 @@ class AuditReconstructionReport:
             },
             "chain_of_custody": chains,
             "calculation_trace": traces,
+            "traceability_appendix": {
+                "scope": (
+                    "Partial product traceability only; entries do not establish "
+                    "standard conformity."
+                ),
+                "entries": StandardsKnowledgeBase.traceability_matrix(),
+            },
             "limitations": limitations,
             "compliance_claim": (
                 "No API RP 580/581 conformity claim. Internal screening output "

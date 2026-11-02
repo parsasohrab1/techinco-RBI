@@ -1,9 +1,10 @@
-import numpy as np
-from scipy.stats import norm
 from dataclasses import asdict
 from datetime import date
 from types import SimpleNamespace
 from typing import Any
+
+import numpy as np
+from scipy.stats import norm
 
 from ...config import settings
 from ...standards.baseline import Baseline
@@ -11,8 +12,8 @@ from .base import (
     CofResult,
     DamageMechanismAssessment,
     EngineMetadata,
-    IEngineCalculatorBundle,
     ICofCalculator,
+    IEngineCalculatorBundle,
     IPofCalculator,
     IRiskMatrix,
     PofResult,

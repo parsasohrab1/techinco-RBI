@@ -3,8 +3,8 @@
 import json
 import math
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from datetime import date as date_type
-from datetime import datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -386,7 +386,7 @@ class DataPlatformService:
         if assumption.approved_at is not None:
             raise DataPlatformError("Assumption has already been approved.")
         assumption.approved_by = actor
-        assumption.approved_at = datetime.utcnow()
+        assumption.approved_at = datetime.now(UTC).replace(tzinfo=None)
         self.record_event(
             "engineering_assumption_approved",
             assumption.entity_type,
@@ -466,7 +466,7 @@ class DataPlatformService:
             raise DataPlatformError("Workflow has already been reviewed.")
         workflow.stage = decision
         workflow.decided_by = actor
-        workflow.decided_at = datetime.utcnow()
+        workflow.decided_at = datetime.now(UTC).replace(tzinfo=None)
         workflow.comment = comment
         self.record_event(
             f"workflow_{decision}",

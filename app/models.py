@@ -22,10 +22,10 @@ from .models_data_platform import (
 )
 
 __all__ = [
-    "ApprovalWorkflow",
-    "AnalysisRun",
-    "AuditLog",
     "CML",
+    "AnalysisRun",
+    "ApprovalWorkflow",
+    "AuditLog",
     "CMLAnalysisResult",
     "Component",
     "ComponentDamageMechanism",

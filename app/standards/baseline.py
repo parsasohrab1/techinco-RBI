@@ -101,6 +101,20 @@ class Baseline:
     acceptance = ACCEPTANCE_REGISTRY
 
     @classmethod
+    def api580_requirements(cls):
+        """Return tracked API 580 mappings, not a complete list of requirements."""
+        from .knowledge_base import StandardsKnowledgeBase
+
+        return StandardsKnowledgeBase.by_standard(cls.api580.code)
+
+    @classmethod
+    def api581_requirements(cls):
+        """Return tracked API 581 mappings, not a complete list of requirements."""
+        from .knowledge_base import StandardsKnowledgeBase
+
+        return StandardsKnowledgeBase.by_standard(cls.api581.code)
+
+    @classmethod
     def require_compliance_ready(cls, mechanism: str) -> None:
         cls.mechanism_scope.require_validated(mechanism)
         criteria = cls.acceptance.get(mechanism)
