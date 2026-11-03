@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.engine import make_url
@@ -23,7 +23,7 @@ from app.services.engine.corrosion_calculator import (
 
 QUALITY_SOURCE = "Synthetic demonstration data"
 QUALITY_ACTOR = "synthetic-dataset-generator"
-QUALITY_SOURCE_DATE = datetime(2026, 1, 1, tzinfo=UTC)
+QUALITY_SOURCE_DATE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 PLANT_UNITS = (
     ("GSP", "Gas separation plant"),
     ("ETH", "Ethylene production plant"),
@@ -108,7 +108,7 @@ def create_synthetic_portfolio(
     mechanism_link_start = (
         db.scalar(select(func.max(models.ComponentDamageMechanism.id))) or 0
     ) + 1
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     rng = random.Random(seed)
     components_per_equipment = [
         component_count // equipment_count
@@ -181,7 +181,7 @@ def create_synthetic_portfolio(
 
     db.execute(insert(models.Equipment), equipment_rows)
     db.execute(insert(DataQualityStatus), equipment_quality)
-    recent_date = datetime.now(UTC).date() - timedelta(days=120)
+    recent_date = datetime.now(timezone.utc).date() - timedelta(days=120)
     circuit_rows = []
     measurement_set_rows = []
     measurement_set_ids: list[list[int]] = []

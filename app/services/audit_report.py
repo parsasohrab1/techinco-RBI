@@ -1,7 +1,7 @@
 """Reconstruction report assembled from persisted analysis inputs and outputs."""
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from ..models import AnalysisRun, CMLAnalysisResult
@@ -78,7 +78,7 @@ class AuditReconstructionReport:
 
         return {
             "report_type": "RBI_AUDIT_RECONSTRUCTION",
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "run_id": self.run.id,
             "equipment_tag": self.run.equipment.tag_number,
             "engine": engines[0] if engines else {

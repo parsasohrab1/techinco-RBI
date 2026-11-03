@@ -40,7 +40,7 @@ db.commit()
 
 if db.query(models.Equipment).count() > 0:
     print(
-        "ℹ️  Equipment already exists — skipping seed. Existing records need "
+        "Equipment already exists — skipping seed. Existing records need "
         "field-level data-quality evidence before analysis."
     )
     db.close()
@@ -142,5 +142,5 @@ for inspection in cml.inspections:
             "Verify against the original inspection report.",
         )
 db.commit()
-print(f"✅ Seeded equipment {eq.tag_number} with component + CML + 2 inspections")
+print(f"Seeded equipment {eq.tag_number} with component + CML + 2 inspections")
 db.close()

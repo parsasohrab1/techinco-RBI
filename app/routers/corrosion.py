@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -314,7 +314,7 @@ def approve_circuit_calculation(
         )
     summary.status = "approved"
     summary.approved_by = payload.actor
-    summary.approved_at = datetime.now(UTC).replace(tzinfo=None)
+    summary.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
     summary.approval_comment = payload.comment
     if summary.measurement_set_id is not None:
         measurement_set = db.get(models.MeasurementSet, summary.measurement_set_id)

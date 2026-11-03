@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from math import isfinite
 from threading import RLock
 from typing import Any, ClassVar
@@ -34,7 +34,7 @@ class EngineOutput:
     engine_version: str = ""
     compliance_status: str = "internal_screening"
     calculated_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
 
     def __post_init__(self) -> None:

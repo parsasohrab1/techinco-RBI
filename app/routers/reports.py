@@ -2,7 +2,7 @@ import csv
 import io
 import json
 from collections import Counter
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from itertools import pairwise
 from math import ceil, log10
 from pathlib import Path
@@ -505,7 +505,7 @@ def risk_dashboard(
             "result": result,
             "cml": cml,
             "component": component,
-            "screening_target_date": datetime.now(UTC).date()
+            "screening_target_date": datetime.now(timezone.utc).date()
             + timedelta(days=round(result.recommended_interval_years * 365.25)),
         }
         for run, equipment, result, cml, component in priority_rows
