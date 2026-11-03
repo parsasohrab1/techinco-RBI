@@ -23,24 +23,42 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
     with Session(engine, autoflush=False, expire_on_commit=False) as db:
         equipment_ids = create_synthetic_portfolio(
             db,
-            component_count=4,
-            equipment_count=2,
+            component_count=10,
+            equipment_count=5,
             seed=10,
         )
 
-        assert run_portfolio_analysis(db, equipment_ids) == 4
-        assert db.scalar(select(func.count()).select_from(models.Component)) == 4
-        assert db.scalar(select(func.count()).select_from(models.InspectionRecord)) == 200
+        assert run_portfolio_analysis(db, equipment_ids) == 10
+        assert db.scalar(select(func.count()).select_from(models.Component)) == 10
+        assert db.scalar(select(func.count()).select_from(models.InspectionRecord)) == 500
         inspection_counts = db.execute(
             select(
                 models.InspectionRecord.cml_id,
                 func.count(models.InspectionRecord.id),
             ).group_by(models.InspectionRecord.cml_id)
         ).all()
-        assert len(inspection_counts) == 4
+        assert len(inspection_counts) == 10
         assert {count for _, count in inspection_counts} == {50}
-        assert db.scalar(select(func.count()).select_from(models.CMLAnalysisResult)) == 4
-        assert db.scalar(select(func.count()).select_from(models.AnalysisRun)) == 2
+        assert db.scalar(select(func.count()).select_from(models.CMLAnalysisResult)) == 10
+        assert db.scalar(select(func.count()).select_from(models.AnalysisRun)) == 5
+        assert db.scalar(
+            select(func.count(func.distinct(models.Equipment.equipment_type)))
+        ) >= 4
+        assert db.scalar(
+            select(func.count(func.distinct(models.Equipment.fluid_type)))
+        ) == 2
+        assert db.scalar(
+            select(func.count(func.distinct(models.InspectionRecord.method)))
+        ) >= 3
+        assert {
+            effectiveness
+            for (effectiveness,) in db.execute(
+                select(models.InspectionRecord.effectiveness).distinct()
+            )
+        } == {"A", "B", "C", "D", "E"}
+        assert db.scalar(select(func.min(models.Equipment.design_pressure_kpa))) < db.scalar(
+            select(func.max(models.Equipment.design_pressure_kpa))
+        )
         mechanism_link_count = db.scalar(
             select(func.count()).select_from(models.ComponentDamageMechanism)
         )
@@ -48,12 +66,12 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
             select(func.count())
             .select_from(DataQualityStatus)
             .where(DataQualityStatus.quality == "verified")
-        ) == 640 + 2 * mechanism_link_count
+        ) == 6 * 5 + (7 + 3 * 50) * 10 + 2 * mechanism_link_count
         assert db.scalar(
             select(func.count())
             .select_from(models.Equipment)
             .where(models.Equipment.plant_unit != "Unassigned")
-        ) == 2
+        ) == 5
         assert db.scalar(
             select(func.count())
             .select_from(DataQualityStatus)

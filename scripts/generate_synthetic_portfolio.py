@@ -34,6 +34,7 @@ EQUIPMENT_TYPES = (
     "boiler",
     "pressure_relief_device",
 )
+INSPECTION_METHODS = ("UT", "PAUT", "RT", "Profile RT")
 COMPONENT_PROFILES = {
     "vessel": (("Shell", "shell"), ("Head", "head"), ("Nozzle", "nozzle")),
     "heat_exchanger": (
@@ -108,7 +109,28 @@ def create_synthetic_portfolio(
     for equipment_offset in range(equipment_count):
         equipment_id = equipment_start + equipment_offset
         plant_code, plant_unit = PLANT_UNITS[equipment_offset % len(PLANT_UNITS)]
-        equipment_type = rng.choice(EQUIPMENT_TYPES)
+        equipment_type = EQUIPMENT_TYPES[equipment_offset % len(EQUIPMENT_TYPES)]
+        risk_profile = equipment_offset % 5
+        if risk_profile == 0:
+            pressure = float(rng.randrange(700, 1_101, 50))
+            inventory = float(rng.randrange(10, 31, 5))
+            fluid_type, hazardous = "liquid", False
+        elif risk_profile == 1:
+            pressure = float(rng.randrange(800, 1_801, 50))
+            inventory = float(rng.randrange(30, 101, 5))
+            fluid_type, hazardous = "liquid", rng.choice((False, True))
+        elif risk_profile == 2:
+            pressure = float(rng.randrange(1_500, 2_801, 50))
+            inventory = float(rng.randrange(100, 401, 10))
+            fluid_type, hazardous = "gas", rng.choice((False, True))
+        elif risk_profile == 3:
+            pressure = float(rng.randrange(2_500, 3_601, 50))
+            inventory = float(rng.randrange(300, 701, 10))
+            fluid_type, hazardous = "gas", True
+        else:
+            pressure = float(rng.randrange(3_500, 4_001, 50))
+            inventory = float(rng.randrange(700, 1_001, 10))
+            fluid_type, hazardous = "gas", True
         equipment_rows.append({
             "id": equipment_id,
             "tag_number": (
@@ -117,11 +139,11 @@ def create_synthetic_portfolio(
             "plant_unit": plant_unit,
             "equipment_type": equipment_type,
             "material": rng.choice(("Carbon Steel", "Cr-Mo Steel", "Stainless Steel")),
-            "design_pressure_kpa": float(rng.randrange(700, 4_001, 50)),
+            "design_pressure_kpa": pressure,
             "design_temperature_c": float(rng.randrange(40, 301, 5)),
-            "inventory_m3": float(rng.randrange(10, 1_001, 10)),
-            "fluid_type": rng.choice(("liquid", "gas")),
-            "hazardous": rng.choice((True, True, False)),
+            "inventory_m3": inventory,
+            "fluid_type": fluid_type,
+            "hazardous": hazardous,
         })
         equipment_quality.extend(
             {
@@ -191,6 +213,13 @@ def create_synthetic_portfolio(
             initial_thickness = round(rng.uniform(minimum + 2, nominal), 2)
             maximum_loss = max(initial_thickness - minimum - 0.1, 0.1)
             total_loss = min(rng.uniform(0.35, 6.0), maximum_loss)
+            deterioration_profile = component_index % 5
+            if deterioration_profile == 0:
+                total_loss = min(rng.uniform(0.25, 1.0), maximum_loss)
+            elif deterioration_profile == 1:
+                total_loss = min(rng.uniform(1.0, 2.5), maximum_loss)
+            elif deterioration_profile >= 3:
+                total_loss = min(rng.uniform(3.0, 6.0), maximum_loss)
             is_insulated = rng.random() < 0.35
             component_name, geometry_type = rng.choice(
                 COMPONENT_PROFILES[equipment_type]
@@ -212,13 +241,22 @@ def create_synthetic_portfolio(
                 "name": f"CML-{component_index + 1:05d}",
                 "surface_condition": rng.choice(("normal", "coated", "weathered")),
             })
+            previous_date = None
             for inspection_offset in range(inspections_per_component):
                 fraction = inspection_offset / (inspections_per_component - 1)
+                elapsed_days = round(15 * 365.25 * fraction)
                 inspection_date = recent_date - timedelta(
-                    days=round(15 * 365.25 * (1 - fraction))
+                    days=round(15 * 365.25) - elapsed_days
                 )
+                if 0 < inspection_offset < inspections_per_component - 1:
+                    inspection_date += timedelta(days=rng.randint(-18, 18))
+                if previous_date is not None and inspection_date <= previous_date:
+                    inspection_date = previous_date + timedelta(days=30)
+                previous_date = inspection_date
+                true_thickness = initial_thickness - total_loss * fraction
                 thickness = round(
-                    initial_thickness - total_loss * fraction, 2
+                    min(nominal, max(minimum - 0.05, true_thickness + rng.gauss(0, 0.12))),
+                    2,
                 )
                 inspection_id = first_inspection_id + inspection_offset
                 inspection_rows.append({
@@ -226,8 +264,8 @@ def create_synthetic_portfolio(
                     "cml_id": cml_id,
                     "inspection_date": inspection_date,
                     "thickness_mm": thickness,
-                    "method": "UT",
-                    "effectiveness": rng.choice(("B", "C", "D")),
+                    "method": rng.choice(INSPECTION_METHODS),
+                    "effectiveness": rng.choice(("A", "B", "C", "D", "E")),
                     "inspector_id": 0,
                 })
                 for field_name in (

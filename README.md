@@ -53,7 +53,7 @@ The current internal screening engine is **not** an API 581 calculator. Analysis
 - Illustrative consequence score (safety / environmental / economic dimensions)
 - 5×5 risk matrix with Low / Medium / High / Critical levels
 - Recommended inspection interval based on remaining life
-- Portfolio dashboard with unit coverage, risk matrix, mechanisms, and priorities
+- Portfolio dashboard with unit coverage, component-level mechanism and latest-assessment coverage, risk matrix, and priorities
 - Audit log with user, timestamp, and before/after values
 - Per-CML analysis reports (JSON / CSV)
 
@@ -341,10 +341,13 @@ no operating temperature.
 
 ## Risk dashboard
 
-Open `/reports/dashboard` to view the latest analysis for each equipment item,
-including five process units, asset-class mix, risk matrix, active damage
-mechanisms, inspection horizons, and a filterable assessment register.
-Historical runs are excluded from the summary. The full synthetic portfolio
+Open `/reports/dashboard` for a dense RBI workspace with a project explorer,
+analysis tabs, equipment input and inspection history, measured thickness trends,
+portfolio risk matrix and plot, risk register, and a prioritized screening
+worklist. Parameter ranges and distributions are aggregated from stored records.
+Economic consequences are ordinal screening categories only: this prototype
+does not calculate monetary or cumulative financial risk. The interface and
+calculation engine are not API RP 580/581 validated. The full synthetic portfolio
 generator and its 10,000-component dataset are documented in
 [`docs/SYNTHETIC_DATA.md`](./docs/SYNTHETIC_DATA.md).
 

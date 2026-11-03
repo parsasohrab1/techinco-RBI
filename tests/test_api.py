@@ -9,10 +9,12 @@ def test_risk_dashboard_empty_state(client):
 
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
-    assert "No assessments have been recorded" in r.text
+    assert "No analysis results are available" in r.text
     assert "synthetic demonstration portfolio" in r.text
     assert "Risk matrix" in r.text
-    assert 'id="assessment-search"' not in r.text
+    assert "Project overview" in r.text
+    assert 'data-workspace="damage-time"' in r.text
+    assert 'data-workspace-panel="economic"' in r.text
 
 
 def test_full_workflow(client, record_quality):
@@ -185,12 +187,24 @@ def test_full_workflow(client, record_quality):
     dashboard = client.get("/reports/dashboard")
     assert dashboard.status_code == 200
     assert "V-900" in dashboard.text
-    assert "Asset assessment register" in dashboard.text
-    assert 'data-risk="' in dashboard.text
-    assert "Portfolio snapshot" in dashboard.text
-    assert "1 shown · 1 total" in dashboard.text
+    assert "Latest component risk register" in dashboard.text
+    assert "1 shown · page 1 of 1" in dashboard.text
     assert "Gas separation plant" in dashboard.text
     assert "Risk matrix" in dashboard.text
+    assert "Damage-mechanism and assessment coverage" in dashboard.text
+    assert "With at least one active damage mechanism" in dashboard.text
+    assert "Assessment workflow boundary" in dashboard.text
+    selected_dashboard = client.get(
+        "/reports/dashboard",
+        params={"equipment_id": eq_id},
+    )
+    assert selected_dashboard.status_code == 200
+    assert "Point measurement log" in selected_dashboard.text
+    assert "Measured wall thickness vs. time" in selected_dashboard.text
+    assert "2 rows" in selected_dashboard.text
+    assert "2 dated observations" in selected_dashboard.text
+    assert "50 dated observations" not in selected_dashboard.text
+    assert "CML-A" in selected_dashboard.text
     assert client.get("/reports/dashboard?page=0").status_code == 422
     assert client.get("/reports/dashboard?page_size=101").status_code == 422
     mechanism_assessments = data["results"][0]["details"]["damage_mechanisms"]
@@ -229,7 +243,7 @@ def test_full_workflow(client, record_quality):
 
     dashboard = client.get("/reports/dashboard")
     assert dashboard.status_code == 200
-    assert "Asset assessment register" in dashboard.text
+    assert "Latest component risk register" in dashboard.text
     assert "V-900" in dashboard.text
     assert "CML-A" in dashboard.text
     assert f"/reports/run/{latest_run_id}/worklist.csv" in dashboard.text
