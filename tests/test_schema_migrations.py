@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, inspect
 
 from app.database import (
     migrate_component_cui_fields,
+    migrate_corrosion_circuit_fields,
     migrate_damage_mechanism_assessment_data,
     migrate_equipment_plant_unit,
 )
@@ -81,3 +82,52 @@ def test_equipment_migration_adds_plant_unit_to_existing_schema():
         assert connection.exec_driver_sql(
             "SELECT plant_unit FROM equipment WHERE id = 1"
         ).scalar_one() == "Unassigned"
+
+
+def test_corrosion_migration_adds_fields_and_indexes_to_existing_schema():
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE component (
+                id INTEGER PRIMARY KEY,
+                equipment_id INTEGER NOT NULL,
+                name VARCHAR(50) NOT NULL,
+                t_min_mm FLOAT NOT NULL,
+                t_nominal_mm FLOAT NOT NULL,
+                geometry_type VARCHAR(30) NOT NULL
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE inspection_record (
+                id INTEGER PRIMARY KEY,
+                cml_id INTEGER NOT NULL,
+                inspection_date DATE NOT NULL,
+                thickness_mm FLOAT NOT NULL,
+                method VARCHAR(20) NOT NULL,
+                effectiveness VARCHAR(2) NOT NULL,
+                inspector_id INTEGER NOT NULL
+            )
+            """
+        )
+
+    migrate_corrosion_circuit_fields(engine)
+    migrate_corrosion_circuit_fields(engine)
+
+    inspector = inspect(engine)
+    component_columns = {
+        column["name"] for column in inspector.get_columns("component")
+    }
+    inspection_columns = {
+        column["name"] for column in inspector.get_columns("inspection_record")
+    }
+    assert "circuit_id" in component_columns
+    assert {"measurement_set_id", "quality_indicator", "reading_type"} <= inspection_columns
+    assert "ix_component_circuit_id" in {
+        index["name"] for index in inspector.get_indexes("component")
+    }
+    assert "ix_inspection_record_measurement_set_id" in {
+        index["name"] for index in inspector.get_indexes("inspection_record")
+    }

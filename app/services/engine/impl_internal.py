@@ -19,6 +19,7 @@ from .base import (
     PofResult,
 )
 from .contract import EngineInputSnapshot, EngineOutput, ICalculationEngine
+from .corrosion_calculator import InternalCorrosionCalculator
 from .damage_mechanisms import CUIDamageMechanismEvaluator, SCCChecklistEvaluator
 from .mechanism_gate import MechanismGate
 
@@ -155,6 +156,7 @@ class InternalEngine(IEngineCalculatorBundle, ICalculationEngine):
         strict_compliance: bool = False,
     ):
         self._strict_compliance = strict_compliance
+        self.corrosion_calculator = InternalCorrosionCalculator()
         self.pof_calculator = InternalPofCalculator()
         self.cof_calculator = InternalCofCalculator(cof_weights)
         self.risk_matrix = StandardRiskMatrix()

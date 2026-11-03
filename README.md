@@ -54,13 +54,21 @@ The current internal screening engine is **not** an API 581 calculator. Analysis
 - 5×5 risk matrix with Low / Medium / High / Critical levels
 - Recommended inspection interval based on remaining life
 - Portfolio dashboard with unit coverage, component-level mechanism and latest-assessment coverage, risk matrix, and priorities
+- Corrosion circuits, measurement sets, measurement-quality filtering, deterministic rate / remaining-life screens, and snapshot-checked approvals
+- Corrosion dashboard register for latest circuit rates, driving CML, NID, quality flags, calculation basis, and explicit limitations
 - Audit log with user, timestamp, and before/after values
 - Per-CML analysis reports (JSON / CSV)
+
+Corrosion screens calculate long / short corrosion rates, linear-regression rates,
+remaining corrosion allowance, remaining life, and indicative inspection dates.
+They are deterministic internal screens, not validated API RP 580/581 calculations
+or inspection advice. No language model currently generates engineering values;
+any future AI layer is limited to explaining saved, reviewable calculations.
 
 ### 🗺️ Roadmap (Phase 2+)
 - Additional damage mechanisms: **Cracking**, **CUI**, **Thermal Fatigue** (per API 571)
 - Full three-dimensional COF (safety, environmental, economic with configurable weights)
-- Corrosion Circuits as a grouping layer
+- Validated corrosion-circuit models, including complete DSCF/PERF inputs and approved schedule crediting
 - Advanced historical risk and inspection trend analytics
 - CMMS/ERP integration adapters (SAP PM, Maximo)
 - SSO (OIDC/SAML) + fine-grained RBAC

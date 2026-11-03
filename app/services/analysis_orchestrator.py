@@ -14,6 +14,7 @@ from .engine.contract import (
     EngineRegistry,
     ICalculationEngine,
 )
+from .engine.corrosion_calculator import InternalCorrosionCalculator
 from .engine.impl_internal import InternalEngine
 
 RANK = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
@@ -27,6 +28,15 @@ def get_engine() -> ICalculationEngine:
             strict_compliance=config.strict_compliance,
         ))
     return config.resolve_engine()
+
+
+def get_corrosion_calculator() -> InternalCorrosionCalculator:
+    engine = get_engine()
+    if not isinstance(engine, InternalEngine):
+        raise NotImplementedError(
+            f"Engine '{engine.name}' does not provide corrosion-circuit calculations."
+        )
+    return engine.corrosion_calculator
 
 
 def recommended_interval(remaining_life: float, risk_level: str) -> float:

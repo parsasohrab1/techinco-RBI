@@ -8,12 +8,18 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.database import Base
 from app.models_data_platform import DataQualityStatus
 from app.services.analysis_orchestrator import analyze_equipment
+from app.services.engine.corrosion_calculator import (
+    InternalCorrosionCalculator,
+    build_circuit_input_snapshot,
+    circuit_defaults,
+    circuit_input_digest,
+)
 
 QUALITY_SOURCE = "Synthetic demonstration data"
 QUALITY_ACTOR = "synthetic-dataset-generator"
@@ -93,6 +99,12 @@ def create_synthetic_portfolio(
     inspection_start = (
         db.scalar(select(func.max(models.InspectionRecord.id))) or 0
     ) + 1
+    circuit_start = (
+        db.scalar(select(func.max(models.CorrosionCircuit.id))) or 0
+    ) + 1
+    measurement_set_start = (
+        db.scalar(select(func.max(models.MeasurementSet.id))) or 0
+    ) + 1
     mechanism_link_start = (
         db.scalar(select(func.max(models.ComponentDamageMechanism.id))) or 0
     ) + 1
@@ -169,6 +181,44 @@ def create_synthetic_portfolio(
 
     db.execute(insert(models.Equipment), equipment_rows)
     db.execute(insert(DataQualityStatus), equipment_quality)
+    recent_date = datetime.now(UTC).date() - timedelta(days=120)
+    circuit_rows = []
+    measurement_set_rows = []
+    measurement_set_ids: list[list[int]] = []
+    for equipment_offset, equipment in enumerate(equipment_rows):
+        circuit_id = circuit_start + equipment_offset
+        defaults = circuit_defaults(equipment["equipment_type"])
+        circuit_rows.append({
+            "id": circuit_id,
+            "equipment_id": equipment["id"],
+            "circuit_code": "A",
+            "description": "Synthetic corrosion-rate grouping for demonstration.",
+            **defaults,
+        })
+        set_ids = []
+        for inspection_offset in range(inspections_per_component):
+            set_id = measurement_set_start + (
+                equipment_offset * inspections_per_component + inspection_offset
+            )
+            fraction = inspection_offset / (inspections_per_component - 1)
+            elapsed_days = round(15 * 365.25 * fraction)
+            set_date = recent_date - timedelta(
+                days=round(15 * 365.25) - elapsed_days
+            )
+            measurement_set_rows.append({
+                "id": set_id,
+                "circuit_id": circuit_id,
+                "name": f"SYN-{inspection_offset + 1:03d}",
+                "description": "Synthetic historical inspection campaign.",
+                "measurement_date": set_date,
+                "status": "completed",
+                "technician": QUALITY_ACTOR,
+                "created_at": now.replace(tzinfo=None),
+            })
+            set_ids.append(set_id)
+        measurement_set_ids.append(set_ids)
+    db.execute(insert(models.CorrosionCircuit), circuit_rows)
+    db.execute(insert(models.MeasurementSet), measurement_set_rows)
     existing_mechanisms = {
         mechanism.name: mechanism
         for mechanism in db.scalars(select(models.DamageMechanism))
@@ -187,7 +237,6 @@ def create_synthetic_portfolio(
 
     component_index = 0
     mechanism_link_index = 0
-    recent_date = datetime.now(UTC).date() - timedelta(days=120)
     equipment_offset = 0
     equipment_component_end = components_per_equipment[0]
     while component_index < component_count:
@@ -228,6 +277,7 @@ def create_synthetic_portfolio(
             component_rows.append({
                 "id": component_id,
                 "equipment_id": equipment_id,
+                "circuit_id": circuit_start + equipment_offset,
                 "name": component_name,
                 "t_min_mm": minimum,
                 "t_nominal_mm": nominal,
@@ -262,10 +312,15 @@ def create_synthetic_portfolio(
                 inspection_rows.append({
                     "id": inspection_id,
                     "cml_id": cml_id,
+                    "measurement_set_id": measurement_set_ids[equipment_offset][
+                        inspection_offset
+                    ],
                     "inspection_date": inspection_date,
                     "thickness_mm": thickness,
                     "method": rng.choice(INSPECTION_METHODS),
                     "effectiveness": rng.choice(("A", "B", "C", "D", "E")),
+                    "quality_indicator": "good",
+                    "reading_type": "measured",
                     "inspector_id": 0,
                 })
                 for field_name in (
@@ -376,6 +431,43 @@ def run_portfolio_analysis(db: Session, equipment_ids: list[int]) -> int:
     return result_count
 
 
+def run_corrosion_circuit_calculations(
+    db: Session,
+    equipment_ids: list[int],
+) -> int:
+    circuit_ids = db.scalars(
+        select(models.CorrosionCircuit.id).where(
+            models.CorrosionCircuit.equipment_id.in_(equipment_ids)
+        )
+    ).all()
+    calculator = InternalCorrosionCalculator()
+    for circuit_id in circuit_ids:
+        circuit = (
+            db.query(models.CorrosionCircuit)
+            .options(
+                selectinload(models.CorrosionCircuit.components)
+                .selectinload(models.Component.cmls)
+                .selectinload(models.CML.inspections)
+            )
+            .filter(models.CorrosionCircuit.id == circuit_id)
+            .one()
+        )
+        snapshot = build_circuit_input_snapshot(circuit)
+        results = calculator.calculate_circuit(circuit, circuit.components)
+        db.add(models.CorrosionCalcSummary(
+            circuit_id=circuit.id,
+            status="calculated",
+            input_snapshot_json=json.dumps({
+                "digest": circuit_input_digest(snapshot),
+                "inputs": snapshot,
+            }, sort_keys=True),
+            results_json=json.dumps(results, sort_keys=True),
+            calculated_by=QUALITY_ACTOR,
+        ))
+    db.commit()
+    return len(circuit_ids)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -422,6 +514,8 @@ def main() -> None:
         if not args.seed_only:
             count = run_portfolio_analysis(db, equipment_ids)
             print(f"Saved {count:,} internal-screening CML results.")
+            circuit_count = run_corrosion_circuit_calculations(db, equipment_ids)
+            print(f"Saved {circuit_count:,} deterministic corrosion summaries.")
     database_engine.dispose()
 
 

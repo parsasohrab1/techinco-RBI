@@ -8,6 +8,7 @@ from app.database import Base
 from app.models_data_platform import DataQualityStatus
 from scripts.generate_synthetic_portfolio import (
     create_synthetic_portfolio,
+    run_corrosion_circuit_calculations,
     run_portfolio_analysis,
 )
 
@@ -29,6 +30,7 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
         )
 
         assert run_portfolio_analysis(db, equipment_ids) == 10
+        assert run_corrosion_circuit_calculations(db, equipment_ids) == 5
         assert db.scalar(select(func.count()).select_from(models.Component)) == 10
         assert db.scalar(select(func.count()).select_from(models.InspectionRecord)) == 500
         inspection_counts = db.execute(
@@ -41,6 +43,12 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
         assert {count for _, count in inspection_counts} == {50}
         assert db.scalar(select(func.count()).select_from(models.CMLAnalysisResult)) == 10
         assert db.scalar(select(func.count()).select_from(models.AnalysisRun)) == 5
+        assert db.scalar(
+            select(func.count()).select_from(models.CorrosionCalcSummary)
+        ) == 5
+        assert db.scalar(
+            select(func.count()).select_from(models.CorrosionCircuit)
+        ) == 5
         assert db.scalar(
             select(func.count(func.distinct(models.Equipment.equipment_type)))
         ) >= 4

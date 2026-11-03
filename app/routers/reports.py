@@ -542,6 +542,65 @@ def risk_dashboard(
         for level in RISK_LEVELS
     ]
 
+    latest_corrosion_summary_ids = (
+        db.query(
+            models.CorrosionCalcSummary.circuit_id.label("circuit_id"),
+            func.max(models.CorrosionCalcSummary.id).label("summary_id")
+        )
+        .group_by(models.CorrosionCalcSummary.circuit_id)
+        .subquery()
+    )
+    corrosion_records = (
+        db.query(
+            models.CorrosionCircuit,
+            models.Equipment,
+            models.CorrosionCalcSummary,
+        )
+        .join(
+            models.Equipment,
+            models.Equipment.id == models.CorrosionCircuit.equipment_id,
+        )
+        .outerjoin(
+            latest_corrosion_summary_ids,
+            latest_corrosion_summary_ids.c.circuit_id
+            == models.CorrosionCircuit.id,
+        )
+        .outerjoin(
+            models.CorrosionCalcSummary,
+            models.CorrosionCalcSummary.id
+            == latest_corrosion_summary_ids.c.summary_id,
+        )
+        .order_by(models.Equipment.tag_number, models.CorrosionCircuit.circuit_code)
+        .limit(100)
+        .all()
+    )
+    corrosion_circuit_rows = []
+    for circuit, equipment, summary in corrosion_records:
+        results = json.loads(summary.results_json) if summary else None
+        circuit_results = results["circuit"] if results else {}
+        corrosion_circuit_rows.append({
+            "circuit": circuit,
+            "equipment": equipment,
+            "summary": summary,
+            "results": circuit_results,
+        })
+    corrosion_circuit_count = (
+        db.query(func.count(models.CorrosionCircuit.id)).scalar() or 0
+    )
+    corrosion_calculation_count = (
+        db.query(func.count(models.CorrosionCalcSummary.id)).scalar() or 0
+    )
+    corrosion_approved_count = (
+        db.query(func.count(models.CorrosionCalcSummary.id))
+        .filter(models.CorrosionCalcSummary.status == "approved")
+        .scalar()
+        or 0
+    )
+    corrosion_quality_issue_count = sum(
+        row["results"].get("data_quality_issue_count", 0)
+        for row in corrosion_circuit_rows
+    )
+
     return templates.TemplateResponse(
         request=request,
         name="risk_dashboard.html",
@@ -551,6 +610,11 @@ def risk_dashboard(
             "risk_levels": RISK_LEVELS,
             "risk_counts": risk_counts,
             "risk_distribution": risk_distribution,
+            "corrosion_circuit_rows": corrosion_circuit_rows,
+            "corrosion_circuit_count": corrosion_circuit_count,
+            "corrosion_calculation_count": corrosion_calculation_count,
+            "corrosion_approved_count": corrosion_approved_count,
+            "corrosion_quality_issue_count": corrosion_quality_issue_count,
             "equipment_count": equipment_count,
             "total_equipment_count": total_equipment_count,
             "component_count": component_count,

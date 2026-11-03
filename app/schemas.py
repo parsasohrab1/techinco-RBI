@@ -40,6 +40,7 @@ class ComponentCreate(BaseModel):
 
 class ComponentOut(BaseModel):
     id: int
+    circuit_id: int | None = None
     name: str
     t_min_mm: float
     t_nominal_mm: float
@@ -59,6 +60,9 @@ class InspectionCreate(BaseModel):
     thickness_mm: float
     method: str = "UT"
     effectiveness: str = Field(default="C", pattern="^[A-E]$")
+    measurement_set_id: int | None = Field(default=None, gt=0)
+    quality_indicator: Literal["good", "verified", "ignored", "unreviewed"] = "unreviewed"
+    reading_type: Literal["measured", "nominal"] = "measured"
 
 
 class InspectionOut(InspectionCreate):
@@ -66,6 +70,65 @@ class InspectionOut(InspectionCreate):
     cml_id: int
     inspector_id: int = 0
     model_config = ConfigDict(from_attributes=True)
+
+
+class CorrosionCircuitCreate(BaseModel):
+    circuit_code: str = Field(min_length=1, max_length=50)
+    description: str = Field(default="", max_length=200)
+    calculation_method: Literal[1, 2] | None = None
+    suggested_corrosion_rate_mm_yr: float | None = Field(default=None, ge=0)
+    interval_factor: float = Field(default=0.5, gt=0, le=1)
+    tif_override: float | None = Field(default=None, gt=0, le=1)
+    time_based_interval_years: float | None = Field(default=None, gt=0)
+    max_inspection_interval_years: float | None = Field(default=None, gt=0)
+    ignore_calculated_interval: bool = False
+
+
+class CorrosionCircuitOut(CorrosionCircuitCreate):
+    id: int
+    equipment_id: int
+    calculation_method: Literal[1, 2]
+    defaults_source: str
+    active: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MeasurementSetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=200)
+    measurement_date: date
+    technician: str = Field(default="", max_length=80)
+
+
+class MeasurementSetOut(MeasurementSetCreate):
+    id: int
+    circuit_id: int
+    status: Literal["open", "completed"]
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CorrosionCalculateRequest(BaseModel):
+    measurement_set_id: int | None = Field(default=None, gt=0)
+    actor: str = Field(min_length=1, max_length=80)
+
+
+class CorrosionApproveRequest(BaseModel):
+    actor: str = Field(min_length=1, max_length=80)
+    comment: str = Field(default="", max_length=2000)
+
+
+class CorrosionCalcSummaryOut(BaseModel):
+    id: int
+    circuit_id: int
+    measurement_set_id: int | None
+    status: Literal["calculated", "approved", "rejected"]
+    input_snapshot: dict
+    results: dict
+    calculated_by: str
+    calculated_at: datetime
+    approved_by: str | None
+    approved_at: datetime | None
+    approval_comment: str
 
 
 class DamageMechanismOut(BaseModel):

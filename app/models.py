@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -9,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -29,11 +31,14 @@ __all__ = [
     "CMLAnalysisResult",
     "Component",
     "ComponentDamageMechanism",
+    "CorrosionCalcSummary",
+    "CorrosionCircuit",
     "DamageMechanism",
     "DataQualityStatus",
     "EngineeringAssumption",
     "Equipment",
     "InspectionRecord",
+    "MeasurementSet",
     "TraceableEvent",
 ]
 
@@ -56,8 +61,75 @@ class Equipment(Base):
     components: Mapped[list["Component"]] = relationship(
         back_populates="equipment", cascade="all, delete-orphan"
     )
+    corrosion_circuits: Mapped[list["CorrosionCircuit"]] = relationship(
+        back_populates="equipment", cascade="all, delete-orphan"
+    )
     analysis_runs: Mapped[list["AnalysisRun"]] = relationship(
         back_populates="equipment", cascade="all, delete-orphan"
+    )
+
+
+class CorrosionCircuit(Base):
+    __tablename__ = "corrosion_circuit"
+    __table_args__ = (
+        UniqueConstraint("equipment_id", "circuit_code", name="uq_circuit_equipment_code"),
+        CheckConstraint(
+            "calculation_method IN (1, 2)", name="ck_circuit_calculation_method"
+        ),
+        CheckConstraint(
+            "interval_factor > 0 AND interval_factor <= 1",
+            name="ck_circuit_interval_factor",
+        ),
+        CheckConstraint(
+            "tif_override IS NULL OR (tif_override > 0 AND tif_override <= 1)",
+            name="ck_circuit_tif_override",
+        ),
+        CheckConstraint(
+            "suggested_corrosion_rate_mm_yr IS NULL "
+            "OR suggested_corrosion_rate_mm_yr >= 0",
+            name="ck_circuit_suggested_rate",
+        ),
+        CheckConstraint(
+            "time_based_interval_years IS NULL OR time_based_interval_years > 0",
+            name="ck_circuit_time_based_interval",
+        ),
+        CheckConstraint(
+            "max_inspection_interval_years IS NULL "
+            "OR max_inspection_interval_years > 0",
+            name="ck_circuit_max_interval",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    equipment_id: Mapped[int] = mapped_column(ForeignKey("equipment.id"), index=True)
+    circuit_code: Mapped[str] = mapped_column(String(50))
+    description: Mapped[str] = mapped_column(String(200), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    calculation_method: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
+    suggested_corrosion_rate_mm_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    interval_factor: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+    tif_override: Mapped[float | None] = mapped_column(Float, nullable=True)
+    time_based_interval_years: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_inspection_interval_years: Mapped[float | None] = mapped_column(
+        Float, nullable=True
+    )
+    ignore_calculated_interval: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    defaults_source: Mapped[str] = mapped_column(
+        String(80), default="user_configured", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    equipment: Mapped["Equipment"] = relationship(back_populates="corrosion_circuits")
+    components: Mapped[list["Component"]] = relationship(back_populates="circuit")
+    measurement_sets: Mapped[list["MeasurementSet"]] = relationship(
+        back_populates="circuit", cascade="all, delete-orphan"
+    )
+    calculations: Mapped[list["CorrosionCalcSummary"]] = relationship(
+        back_populates="circuit", cascade="all, delete-orphan"
     )
 
 
@@ -65,6 +137,9 @@ class Component(Base):
     __tablename__ = "component"
     id: Mapped[int] = mapped_column(primary_key=True)
     equipment_id: Mapped[int] = mapped_column(ForeignKey("equipment.id"))
+    circuit_id: Mapped[int | None] = mapped_column(
+        ForeignKey("corrosion_circuit.id"), nullable=True, index=True
+    )
     name: Mapped[str] = mapped_column(String(50))
     t_min_mm: Mapped[float] = mapped_column(Float)
     t_nominal_mm: Mapped[float] = mapped_column(Float)
@@ -75,6 +150,9 @@ class Component(Base):
     operating_temperature_c: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     equipment: Mapped["Equipment"] = relationship(back_populates="components")
+    circuit: Mapped["CorrosionCircuit | None"] = relationship(
+        back_populates="components"
+    )
     cmls: Mapped[list["CML"]] = relationship(
         back_populates="component", cascade="all, delete-orphan"
     )
@@ -100,15 +178,94 @@ class CML(Base):
 
 class InspectionRecord(Base):
     __tablename__ = "inspection_record"
+    __table_args__ = (
+        CheckConstraint(
+            "quality_indicator IN ('good', 'verified', 'ignored', 'unreviewed')",
+            name="ck_inspection_quality_indicator",
+        ),
+        CheckConstraint(
+            "reading_type IN ('measured', 'nominal')",
+            name="ck_inspection_reading_type",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
     cml_id: Mapped[int] = mapped_column(ForeignKey("cml.id"))
+    measurement_set_id: Mapped[int | None] = mapped_column(
+        ForeignKey("measurement_set.id"), nullable=True, index=True
+    )
     inspection_date: Mapped[date] = mapped_column(Date)
     thickness_mm: Mapped[float] = mapped_column(Float)
     method: Mapped[str] = mapped_column(String(20), default="UT")
     effectiveness: Mapped[str] = mapped_column(String(2), default="C")
+    quality_indicator: Mapped[str] = mapped_column(
+        String(20),
+        default="unreviewed",
+        server_default="unreviewed",
+        nullable=False,
+    )
+    reading_type: Mapped[str] = mapped_column(
+        String(20),
+        default="measured",
+        server_default="measured",
+        nullable=False,
+    )
     inspector_id: Mapped[int] = mapped_column(Integer, default=0)
 
     cml: Mapped["CML"] = relationship(back_populates="inspections")
+    measurement_set: Mapped["MeasurementSet | None"] = relationship(
+        back_populates="inspections"
+    )
+
+
+class MeasurementSet(Base):
+    __tablename__ = "measurement_set"
+    __table_args__ = (
+        UniqueConstraint("circuit_id", "name", name="uq_measurement_set_circuit_name"),
+        CheckConstraint(
+            "status IN ('open', 'completed')", name="ck_measurement_set_status"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    circuit_id: Mapped[int] = mapped_column(ForeignKey("corrosion_circuit.id"))
+    name: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(String(200), default="")
+    measurement_date: Mapped[date] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
+    technician: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    circuit: Mapped["CorrosionCircuit"] = relationship(back_populates="measurement_sets")
+    inspections: Mapped[list["InspectionRecord"]] = relationship(
+        back_populates="measurement_set"
+    )
+
+
+class CorrosionCalcSummary(Base):
+    __tablename__ = "corrosion_calc_summary"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('calculated', 'approved', 'rejected')",
+            name="ck_corrosion_calc_summary_status",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    circuit_id: Mapped[int] = mapped_column(ForeignKey("corrosion_circuit.id"))
+    measurement_set_id: Mapped[int | None] = mapped_column(
+        ForeignKey("measurement_set.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="calculated")
+    input_snapshot_json: Mapped[str] = mapped_column(Text)
+    results_json: Mapped[str] = mapped_column(Text)
+    calculated_by: Mapped[str] = mapped_column(String(80))
+    calculated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    approved_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    approval_comment: Mapped[str] = mapped_column(Text, default="")
+
+    circuit: Mapped["CorrosionCircuit"] = relationship(back_populates="calculations")
 
 
 class DamageMechanism(Base):

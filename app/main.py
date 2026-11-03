@@ -7,6 +7,7 @@ from .database import (
     Base,
     engine,
     migrate_component_cui_fields,
+    migrate_corrosion_circuit_fields,
     migrate_damage_mechanism_assessment_data,
     migrate_equipment_plant_unit,
 )
@@ -14,6 +15,7 @@ from .routers import (
     analysis,
     audit_router,
     cmms,
+    corrosion,
     damage_mechanisms,
     data_platform,
     equipment,
@@ -28,6 +30,7 @@ async def lifespan(app: FastAPI):
     migrate_component_cui_fields(engine)
     migrate_damage_mechanism_assessment_data(engine)
     migrate_equipment_plant_unit(engine)
+    migrate_corrosion_circuit_fields(engine)
     yield
 
 
@@ -43,6 +46,7 @@ app = FastAPI(
 
 app.include_router(equipment.router)
 app.include_router(inspections.router)
+app.include_router(corrosion.router)
 app.include_router(damage_mechanisms.router)
 app.include_router(analysis.router)
 app.include_router(reports.router)

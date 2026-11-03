@@ -87,3 +87,37 @@ def migrate_equipment_plant_unit(database_engine: Engine = engine) -> None:
         connection.exec_driver_sql(
             f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
         )
+
+
+def migrate_corrosion_circuit_fields(database_engine: Engine = engine) -> None:
+    from .models import Component, InspectionRecord
+
+    additions = (
+        (Component.__table__, ("circuit_id",)),
+        (
+            InspectionRecord.__table__,
+            ("measurement_set_id", "quality_indicator", "reading_type"),
+        ),
+    )
+    with database_engine.begin() as connection:
+        inspector = inspect(connection)
+        preparer = connection.dialect.identifier_preparer
+        for table, column_names in additions:
+            if not inspector.has_table(table.name):
+                continue
+            existing_columns = {
+                column["name"] for column in inspector.get_columns(table.name)
+            }
+            quoted_table = preparer.quote(table.name)
+            for column_name in column_names:
+                if column_name in existing_columns:
+                    continue
+                definition = CreateColumn(table.c[column_name]).compile(
+                    dialect=connection.dialect
+                )
+                connection.exec_driver_sql(
+                    f"ALTER TABLE {quoted_table} ADD COLUMN {definition}"
+                )
+            for index in table.indexes:
+                if any(column.name in column_names for column in index.columns):
+                    index.create(bind=connection, checkfirst=True)
