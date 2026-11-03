@@ -32,15 +32,34 @@ class EquipmentScope:
     allowed_types: tuple[str, ...] = (
         "vessel",
         "pressure_vessel",
+        "column",
         "piping",
+        "pipeline",
         "heat_exchanger",
         "atmospheric_tank",
+        "storage_tank",
+        "pump",
+        "turbine",
+        "compressor",
+        "reactor",
+        "fired_heater",
         "pressure_relief_device",
         "boiler",
+        "valve",
+    )
+    aliases: tuple[tuple[str, str], ...] = (
+        ("tank", "storage_tank"),
+        ("piping_system", "piping"),
+        ("distillation_column", "column"),
+        ("fractionation_column", "column"),
+        ("furnace", "fired_heater"),
+        ("heater", "fired_heater"),
+        ("relief_valve", "pressure_relief_device"),
     )
 
     def validate(self, equipment_type: str) -> None:
         normalized = equipment_type.strip().casefold().replace("-", "_").replace(" ", "_")
+        normalized = dict(self.aliases).get(normalized, normalized)
         if normalized not in self.allowed_types:
             raise ValueError(
                 f"Equipment type '{equipment_type}' is outside MVP scope. "

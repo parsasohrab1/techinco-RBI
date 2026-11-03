@@ -36,7 +36,40 @@ def test_api581_coverage_uses_exact_mechanism_tags():
 
 @pytest.mark.parametrize(
     "equipment_type",
-    ["vessel", "pressure_vessel", "heat exchanger", "pressure-relief-device"],
+    [
+        "vessel",
+        "pressure_vessel",
+        "column",
+        "piping",
+        "pipeline",
+        "heat exchanger",
+        "atmospheric tank",
+        "storage tank",
+        "pump",
+        "turbine",
+        "compressor",
+        "boiler",
+        "fired heater",
+        "reactor",
+        "valve",
+        "pressure-relief-device",
+    ],
 )
 def test_baseline_accepts_supported_equipment_aliases(equipment_type):
+    Baseline.equipment_scope.validate(equipment_type)
+
+
+@pytest.mark.parametrize(
+    ("equipment_type", "canonical_type"),
+    [
+        ("tank", "storage_tank"),
+        ("piping-system", "piping"),
+        ("distillation column", "column"),
+        ("furnace", "fired_heater"),
+        ("relief-valve", "pressure_relief_device"),
+    ],
+)
+def test_baseline_accepts_common_equipment_aliases(equipment_type, canonical_type):
+    normalized = equipment_type.strip().casefold().replace("-", "_").replace(" ", "_")
+    assert dict(Baseline.equipment_scope.aliases)[normalized] == canonical_type
     Baseline.equipment_scope.validate(equipment_type)

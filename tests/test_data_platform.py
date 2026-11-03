@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_assumed_quality_requires_an_approved_assumption(client):
     equipment = client.post("/equipment", json={"tag_number": "V-ASSUMED"})
     assert equipment.status_code == 200
@@ -84,9 +87,55 @@ def test_workflow_records_events_and_prevents_final_decision_changes(client):
     ]
 
 
+@pytest.mark.parametrize(
+    "equipment_type",
+    [
+        "storage_tank",
+        "pump",
+        "turbine",
+        "heat_exchanger",
+        "pipeline",
+        "pressure_vessel",
+        "column",
+        "compressor",
+        "boiler",
+        "fired_heater",
+        "reactor",
+        "valve",
+        "pressure_relief_device",
+    ],
+)
+def test_equipment_scope_accepts_common_industrial_types(client, equipment_type):
+    response = client.post(
+        "/equipment",
+        json={"tag_number": f"TYPE-{equipment_type}", "equipment_type": equipment_type},
+    )
+    assert response.status_code == 200
+    assert response.json()["equipment_type"] == equipment_type
+
+
+def test_equipment_types_endpoint_lists_supported_categories(client):
+    response = client.get("/equipment/types")
+
+    assert response.status_code == 200
+    assert {
+        "storage_tank",
+        "pump",
+        "turbine",
+        "heat_exchanger",
+        "pipeline",
+        "column",
+        "compressor",
+        "fired_heater",
+        "reactor",
+        "valve",
+        "pressure_relief_device",
+    }.issubset(response.json())
+
+
 def test_equipment_scope_rejects_unsupported_types(client):
     response = client.post(
         "/equipment",
-        json={"tag_number": "X-OUT-OF-SCOPE", "equipment_type": "turbine"},
+        json={"tag_number": "X-OUT-OF-SCOPE", "equipment_type": "unsupported_machine"},
     )
     assert response.status_code == 422

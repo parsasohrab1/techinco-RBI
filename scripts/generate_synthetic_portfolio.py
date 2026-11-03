@@ -34,27 +34,83 @@ PLANT_UNITS = (
 EQUIPMENT_TYPES = (
     "vessel",
     "vessel",
+    "pressure_vessel",
+    "column",
     "heat_exchanger",
     "piping",
+    "pipeline",
     "atmospheric_tank",
+    "storage_tank",
+    "pump",
+    "turbine",
+    "compressor",
     "boiler",
+    "fired_heater",
+    "reactor",
+    "valve",
     "pressure_relief_device",
 )
 INSPECTION_METHODS = ("UT", "PAUT", "RT", "Profile RT")
 COMPONENT_PROFILES = {
     "vessel": (("Shell", "shell"), ("Head", "head"), ("Nozzle", "nozzle")),
+    "pressure_vessel": (
+        ("Shell", "shell"),
+        ("Head", "head"),
+        ("Nozzle", "nozzle"),
+    ),
+    "column": (
+        ("Column shell", "shell"),
+        ("Tray section", "shell"),
+        ("Nozzle", "nozzle"),
+    ),
     "heat_exchanger": (
         ("Shell side", "shell"),
         ("Channel head", "head"),
         ("Tube bundle", "tube"),
     ),
     "piping": (("Pipe segment", "pipe"), ("Elbow", "pipe"), ("Nozzle", "nozzle")),
+    "pipeline": (
+        ("Pipeline segment", "pipe"),
+        ("Elbow", "pipe"),
+        ("Nozzle", "nozzle"),
+    ),
     "atmospheric_tank": (
         ("Tank shell course", "shell"),
         ("Tank bottom", "shell"),
         ("Roof plate", "shell"),
     ),
+    "storage_tank": (
+        ("Tank shell course", "shell"),
+        ("Tank bottom", "shell"),
+        ("Roof plate", "shell"),
+    ),
+    "pump": (
+        ("Casing", "shell"),
+        ("Impeller", "rotor"),
+        ("Nozzle", "nozzle"),
+    ),
+    "turbine": (
+        ("Casing", "shell"),
+        ("Rotor", "rotor"),
+        ("Steam chest", "shell"),
+    ),
+    "compressor": (
+        ("Casing", "shell"),
+        ("Rotor", "rotor"),
+        ("Nozzle", "nozzle"),
+    ),
     "boiler": (("Steam drum", "shell"), ("Header", "pipe"), ("Water wall", "shell")),
+    "fired_heater": (
+        ("Radiant coil", "tube"),
+        ("Convection coil", "tube"),
+        ("Header", "pipe"),
+    ),
+    "reactor": (
+        ("Reactor shell", "shell"),
+        ("Head", "head"),
+        ("Nozzle", "nozzle"),
+    ),
+    "valve": (("Body", "shell"), ("Bonnet", "shell"), ("Nozzle", "nozzle")),
     "pressure_relief_device": (("Inlet nozzle", "nozzle"), ("Outlet nozzle", "nozzle")),
 }
 MECHANISM_CATALOG = (

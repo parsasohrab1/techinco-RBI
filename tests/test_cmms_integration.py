@@ -28,7 +28,10 @@ def test_cmms_mock_status(client):
 
 
 def test_high_risk_run_creates_idempotent_mock_work_order(client):
-    equipment = client.post("/equipment", json={"tag_number": "V-CMMS"})
+    equipment = client.post(
+        "/equipment",
+        json={"tag_number": "P-CMMS", "equipment_type": "pump"},
+    )
     assert equipment.status_code == 200
 
     component = client.post(
@@ -63,7 +66,7 @@ def test_high_risk_run_creates_idempotent_mock_work_order(client):
     assert first_payload["eligible_count"] == 1
     assert first_payload["created_count"] == 1
     work_order = first_payload["work_orders"][0]
-    assert work_order["asset_number"] == "V-CMMS"
+    assert work_order["asset_number"] == "P-CMMS"
     assert work_order["location"] == "Shell / CML-HIGH"
     assert work_order["risk_level"] == result["risk_level"]
 

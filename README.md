@@ -48,7 +48,9 @@ The current internal screening engine is **not** an API 581 calculator. Analysis
 ## ✨ Key Features (MVP + Roadmap)
 
 ### ✅ MVP (Current Scope)
-- Equipment → Component → CML hierarchy with data quality tracking
+- Equipment → Component → CML hierarchy with data quality tracking for pressure vessels,
+  columns, piping and pipelines, storage tanks, heat exchangers, pumps, turbines,
+  compressors, boilers, fired heaters, reactors, valves, and pressure-relief devices
 - Illustrative thinning probability proxy and generic CUI/SCC screening
 - Illustrative consequence score (safety / environmental / economic dimensions)
 - 5×5 risk matrix with Low / Medium / High / Critical levels
@@ -64,6 +66,8 @@ remaining corrosion allowance, remaining life, and indicative inspection dates.
 They are deterministic internal screens, not validated API RP 580/581 calculations
 or inspection advice. No language model currently generates engineering values;
 any future AI layer is limited to explaining saved, reviewable calculations.
+Equipment categories share the existing generic screening inputs and workflow;
+type-specific rotating-equipment, tank, and exchanger models are not implemented.
 
 ### 🗺️ Roadmap (Phase 2+)
 - Additional damage mechanisms: **Cracking**, **CUI**, **Thermal Fatigue** (per API 571)

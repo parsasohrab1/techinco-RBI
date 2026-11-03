@@ -24,12 +24,17 @@ def create_equipment(payload: schemas.EquipmentCreate, db: Session = Depends(get
     return eq
 
 
+@router.get("/types", response_model=list[str])
+def list_equipment_types():
+    return list(Baseline.equipment_scope.allowed_types)
+
+
 @router.get("", response_model=list[schemas.EquipmentOut])
 def list_equipment(db: Session = Depends(get_db)):
     return db.query(models.Equipment).order_by(models.Equipment.tag_number).all()
 
 
-@router.get("/{equipment_id}", response_model=schemas.EquipmentDetail)
+@router.get("/{equipment_id:int}", response_model=schemas.EquipmentDetail)
 def get_equipment(equipment_id: int, db: Session = Depends(get_db)):
     eq = db.get(models.Equipment, equipment_id)
     if not eq:

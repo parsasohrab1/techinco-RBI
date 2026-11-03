@@ -7,6 +7,7 @@ from app import models
 from app.database import Base
 from app.models_data_platform import DataQualityStatus
 from scripts.generate_synthetic_portfolio import (
+    EQUIPMENT_TYPES,
     create_synthetic_portfolio,
     run_corrosion_circuit_calculations,
     run_portfolio_analysis,
@@ -97,5 +98,33 @@ def test_synthetic_portfolio_is_traceable_and_runs_through_engine():
                 equipment_count=1,
                 seed=10,
             )
+
+    engine.dispose()
+
+
+def test_synthetic_portfolio_supports_each_equipment_family():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+
+    with Session(engine, autoflush=False, expire_on_commit=False) as db:
+        equipment_ids = create_synthetic_portfolio(
+            db,
+            component_count=len(EQUIPMENT_TYPES),
+            equipment_count=len(EQUIPMENT_TYPES),
+            seed=12,
+            inspections_per_component=2,
+        )
+
+        assert run_portfolio_analysis(db, equipment_ids) == len(EQUIPMENT_TYPES)
+        assert {
+            equipment_type
+            for (equipment_type,) in db.execute(
+                select(models.Equipment.equipment_type).distinct()
+            )
+        } == set(EQUIPMENT_TYPES)
 
     engine.dispose()
