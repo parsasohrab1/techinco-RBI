@@ -1,0 +1,152 @@
+{
+  "source": {
+    "publisher": "Pipeline and Hazardous Materials Safety Administration",
+    "dataset": "Pipeline Incident Flagged Files",
+    "file": "hl2010toPresent.xlsx",
+    "sheet": "hl2010toPresent",
+    "original_url": "https://www.phmsa.dot.gov/sites/phmsa.dot.gov/files/data_statistics/pipeline/PHMSA_Pipeline_Safety_Flagged_Incidents.zip",
+    "retrieved_from": "https://web.archive.org/web/20260508063624id_/https://www.phmsa.dot.gov/sites/phmsa.dot.gov/files/data_statistics/pipeline/PHMSA_Pipeline_Safety_Flagged_Incidents.zip",
+    "wayback_timestamp": "20260508063624",
+    "retrieved_on": "2026-11-08",
+    "datafile_as_of": "2026-04-30",
+    "license": "U.S. Government work, public domain",
+    "retrieval_note": "phmsa.dot.gov returned HTTP 403 from the build network. The zip is the Internet Archive copy of that official file.",
+    "deduplication": "One row per REPORT_NUMBER, keeping the highest SUPPLEMENTAL_NUMBER.",
+    "scope": "Hazardous-liquid pipeline accidents reported to PHMSA. Not refinery or petrochemical fixed-equipment inspection data, and not an API RP 581 generic failure frequency."
+  },
+  "accident_count": 5912,
+  "year_min": 2010,
+  "year_max": 2026,
+  "corrosion_count": 1285,
+  "corrosion_share": 0.217355,
+  "serious_count": 25,
+  "significant_count": 2355,
+  "fatality_accidents": 10,
+  "injury_accidents": 22,
+  "total_fatalities": 16,
+  "total_injuries": 46,
+  "release_bbl": {
+    "count": 5912,
+    "p50": 2.2,
+    "p90": 197.9,
+    "max": 48400.0
+  },
+  "cost_current_usd": {
+    "count": 5912,
+    "p50": 34303.52,
+    "p90": 674745.41,
+    "max": 1132605887.86
+  },
+  "causes": [
+    {
+      "cause": "EQUIPMENT FAILURE",
+      "count": 2700,
+      "share": 0.456698
+    },
+    {
+      "cause": "CORROSION",
+      "count": 1285,
+      "share": 0.217355
+    },
+    {
+      "cause": "INCORRECT OPERATION",
+      "count": 819,
+      "share": 0.138532
+    },
+    {
+      "cause": "MATERIAL FAILURE OF PIPE OR WELD",
+      "count": 398,
+      "share": 0.067321
+    },
+    {
+      "cause": "NATURAL FORCE DAMAGE",
+      "count": 260,
+      "share": 0.043978
+    },
+    {
+      "cause": "EXCAVATION DAMAGE",
+      "count": 195,
+      "share": 0.032984
+    },
+    {
+      "cause": "ALL OTHER CAUSES",
+      "count": 132,
+      "share": 0.022327
+    },
+    {
+      "cause": "OTHER OUTSIDE FORCE DAMAGE",
+      "count": 123,
+      "share": 0.020805
+    }
+  ],
+  "commodities": [
+    {
+      "label": "CRUDE OIL",
+      "count": 3028,
+      "share": 0.512179
+    },
+    {
+      "label": "REFINED AND/OR PETROLEUM PRODUCT (NON-HVL) WHICH IS A LIQUID AT AMBIENT CONDITIONS",
+      "count": 1880,
+      "share": 0.317997
+    },
+    {
+      "label": "HVL OR OTHER FLAMMABLE OR TOXIC FLUID WHICH IS A GAS AT AMBIENT CONDITIONS",
+      "count": 913,
+      "share": 0.154432
+    },
+    {
+      "label": "CO2 (CARBON DIOXIDE)",
+      "count": 84,
+      "share": 0.014208
+    },
+    {
+      "label": "BIOFUEL / ALTERNATIVE FUEL(INCLUDING ETHANOL BLENDS)",
+      "count": 7,
+      "share": 0.001184
+    }
+  ],
+  "items_involved": [
+    {
+      "label": "PIPE",
+      "count": 1481,
+      "share": 0.250507
+    },
+    {
+      "label": "VALVE",
+      "count": 1004,
+      "share": 0.169824
+    },
+    {
+      "label": "PUMP",
+      "count": 612,
+      "share": 0.103518
+    },
+    {
+      "label": "TANK/VESSEL",
+      "count": 470,
+      "share": 0.079499
+    },
+    {
+      "label": "OTHER",
+      "count": 429,
+      "share": 0.072564
+    },
+    {
+      "label": "FLANGE ASSEMBLY",
+      "count": 311,
+      "share": 0.052605
+    },
+    {
+      "label": "AUXILIARY PIPING (E.G. DRAIN LINES)",
+      "count": 253,
+      "share": 0.042794
+    },
+    {
+      "label": "TUBING",
+      "count": 246,
+      "share": 0.04161
+    }
+  ],
+  "content_sha256": "5d04c05cebe7154e0043afdf60f7415f7cce400d64c83e58545adda372d413dc"
+}

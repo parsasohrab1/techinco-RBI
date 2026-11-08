@@ -16,6 +16,11 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..services.incident_reference import (
+    IncidentReferenceError,
+    load_incident_reference,
+    present_incident_reference,
+)
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
@@ -27,6 +32,14 @@ PLANT_UNIT_ORDER = (
     "Polypropylene production plant",
     "Energy supply plant",
 )
+
+
+@router.get("/incident-reference")
+def incident_reference():
+    try:
+        return load_incident_reference()
+    except IncidentReferenceError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -666,6 +679,7 @@ def risk_dashboard(
             "page_count": page_count,
             "previous_page": page - 1 if page > 1 else None,
             "next_page": page + 1 if page < page_count else None,
+            "incident_reference": present_incident_reference(),
         },
     )
 

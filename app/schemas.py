@@ -210,6 +210,24 @@ class CMMSRunSyncOut(BaseModel):
     work_orders: list[CMMSWorkOrderOut]
 
 
+class CMMSWorkOrderComplete(BaseModel):
+    inspection_date: date
+    thickness_mm: float = Field(gt=0)
+    method: str = "UT"
+    effectiveness: str = Field(default="B", pattern="^[A-E]$")
+    actor: str = "field-inspector"
+
+
+class CMMSCompletionOut(BaseModel):
+    work_order_id: str
+    external_reference: str
+    status: str
+    cml_id: int
+    inspection_id: int
+    thickness_mm: float
+    note: str
+
+
 DataEntityType = Literal[
     "equipment",
     "component",

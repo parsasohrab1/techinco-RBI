@@ -40,7 +40,7 @@ app = FastAPI(
         "RBI screening prototype referencing API RP 580 / API RP 581; "
         "internal calculations are not standards-conforming."
     ),
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -57,4 +57,4 @@ app.include_router(data_platform.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": "0.2.0"}

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import Lock
 from typing import Protocol
 
@@ -42,6 +42,10 @@ class CMMSAdapter(Protocol):
     def health(self) -> CMMSConnectionStatus: ...
 
     def create_work_order(self, work_order: WorkOrderRequest) -> WorkOrderReceipt: ...
+
+    def get_work_order(self, external_reference: str) -> WorkOrderReceipt | None: ...
+
+    def mark_completed(self, external_reference: str) -> WorkOrderReceipt: ...
 
 
 class MockMaximoClient:
@@ -90,6 +94,21 @@ class MockMaximoClient:
             )
             self._work_orders[work_order.external_reference] = receipt
             return receipt
+
+    def get_work_order(self, external_reference: str) -> WorkOrderReceipt | None:
+        with self._lock:
+            return self._work_orders.get(external_reference)
+
+    def mark_completed(self, external_reference: str) -> WorkOrderReceipt:
+        with self._lock:
+            existing = self._work_orders.get(external_reference)
+            if existing is None:
+                raise KeyError(external_reference)
+            if existing.status == "completed":
+                raise ValueError(external_reference)
+            completed = replace(existing, status="completed", created=False)
+            self._work_orders[external_reference] = completed
+            return completed
 
 
 _mock_maximo_client = MockMaximoClient()

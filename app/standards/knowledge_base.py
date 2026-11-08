@@ -67,8 +67,8 @@ class StandardsKnowledgeBase:
             "Analysis reconstruction",
             "AuditReconstructionReport",
             "Partial",
-            "Endpoint reports persisted inputs, assumptions, quality, calculation details, and results.",
-            "Report does not recalculate results and audit records are not immutable.",
+            "Reconstruction reports persisted inputs. Replay recomputes that snapshot.",
+            "The reconstruction document itself does not recalculate, and records are not immutable.",
         ),
         TraceabilityEntry(
             "API RP 581",
@@ -125,6 +125,24 @@ class StandardsKnowledgeBase:
             "Implemented for internal screening",
             "Contract execution, output validation, and strict-mode rejection are tested.",
             "The registered calculation implementation is not validated against approved reference cases.",
+        ),
+        TraceabilityEntry(
+            "Product",
+            "TRL 5",
+            "Laboratory inspection feedback",
+            "Mock CMMS completion writes an unreviewed inspection",
+            "Laboratory loop implemented",
+            "Completing a High or Critical work order stores a thickness reading.",
+            "The adapter is an in-memory laboratory stand-in, not a validated SAP or Maximo transport.",
+        ),
+        TraceabilityEntry(
+            "Product",
+            "TRL 5",
+            "External accident context",
+            "PHMSA hazardous-liquid flagged-incident summary",
+            "Reference data loaded",
+            "The summary checksum, cause mix, and years are exposed beside the portfolio.",
+            "Pipeline accidents are not fixed-equipment inspection histories and do not calibrate the screen.",
         ),
     )
 

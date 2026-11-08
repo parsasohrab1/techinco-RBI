@@ -302,6 +302,26 @@
 
         <section class="workspace-panel" id="panel-project" data-workspace-panel="project" role="tabpanel">
           <p class="section-label">Current project · portfolio snapshot</p>
+          <article class="panel" data-reference="phmsa">
+            <div class="panel-heading"><div><h2>External incident context · PHMSA hazardous-liquid accidents</h2><p>Public pipeline accident reports kept beside the screening portfolio. They do not change probability, consequence, or interval.</p></div><span class="panel-badge">{% if incident_reference.available %}{{ "{:,}".format(incident_reference.accident_count) }} accidents{% else %}Unavailable{% endif %}</span></div>
+            <div class="panel-body">
+              {% if incident_reference.available %}
+              <table><tbody>
+                <tr><th>Reported years</th><td>{{ incident_reference.year_min }}–{{ incident_reference.year_max }} · file as of {{ incident_reference.datafile_as_of or "—" }} · retrieved {{ incident_reference.retrieved_on }}</td></tr>
+                <tr><th>Corrosion cause</th><td>{{ "{:,}".format(incident_reference.corrosion_count) }} accidents · {{ "%.1f"|format(incident_reference.corrosion_share * 100) }}% of the deduplicated file</td></tr>
+                <tr><th>Serious / significant</th><td>{{ "{:,}".format(incident_reference.serious_count) }} serious · {{ "{:,}".format(incident_reference.significant_count) }} significant</td></tr>
+                <tr><th>Observed consequence</th><td>Median unintentional release {{ "%.1f"|format(incident_reference.release_p50_bbl) }} bbl · median current-dollar cost ${{ "{:,.0f}".format(incident_reference.cost_p50_usd) }}</td></tr>
+                <tr><th>Leading item</th><td>{{ incident_reference.leading_item }} · {{ "%.1f"|format(incident_reference.leading_item_share * 100) }}%</td></tr>
+                <tr><th>Boundary</th><td>{{ incident_reference.limitation }}</td></tr>
+              </tbody></table>
+              <table><thead><tr><th>Reported cause group</th><th class="num">Accidents</th><th class="num">Share</th></tr></thead><tbody>
+                {% for cause in incident_reference.display_causes %}<tr><td class="cell-primary">{{ cause.cause }}</td><td class="num">{{ "{:,}".format(cause.count) }}</td><td class="num">{{ "%.1f"|format(cause.share * 100) }}%</td></tr>{% endfor %}
+              </tbody></table>
+              {% else %}
+              <div class="empty">{{ incident_reference.message }}</div>
+              {% endif %}
+            </div>
+          </article>
           <div class="stats-grid">
             <div class="stat"><span class="stat-label">Equipment</span><span class="stat-value">{{ "{:,}".format(total_equipment_count) }}</span><span class="stat-foot">{{ plant_units|length }} process units</span></div>
             <div class="stat"><span class="stat-label">Components / CMLs</span><span class="stat-value">{{ "{:,}".format(component_count) }}</span><span class="stat-foot">one synthetic location per component</span></div>
@@ -351,7 +371,8 @@
               <div class="panel-body">
                 <table><tbody>
                   <tr><th>Included here</th><td>Equipment, components, CMLs, active damage-mechanism assignments, inspection readings, and persisted screening results.</td></tr>
-                  <tr><th>Not inferred</th><td>Task selection, inspection schedule assignment, approved due dates, inspection strategy approval, or monitoring-plan completion.</td></tr>
+                  <tr><th>Laboratory loop</th><td>High and Critical results can open a mock work order. Completing it stores one unreviewed thickness reading. That reading does not change the screen until its data-quality evidence is recorded.</td></tr>
+                  <tr><th>Not inferred</th><td>Approved due dates, inspection-strategy approval, or a validated SAP PM / Maximo transport.</td></tr>
                   <tr><th>Interpretation</th><td>Coverage counts show data presence only; they do not establish engineering review, barrier verification, or readiness for inspection.</td></tr>
                 </tbody></table>
               </div>

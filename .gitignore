@@ -16,5 +16,6 @@ dist/
 build/
 .DS_Store
 .idea/
+data/raw/
 .vscode/*
 !.vscode/settings.json

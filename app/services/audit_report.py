@@ -67,6 +67,10 @@ class AuditReconstructionReport:
                 "This reconstruction reflects stored inputs and outputs; it does not "
                 "independently recalculate the analysis."
             ),
+            (
+                "Independent recalculation of the stored input snapshot is a separate "
+                "request, GET /audit/runs/{run_id}/replay."
+            ),
             "The event and audit records are not cryptographically immutable.",
             "Actor identifiers are caller-supplied until authentication is implemented.",
         ]
